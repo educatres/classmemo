@@ -71,6 +71,7 @@ let expiryTimer;
 let isExpiryCleanupRunning = false;
 let teacherKey = '';
 let isTeacherKeyVisible = false;
+let teacherStatusTimer;
 
 if (!parsed.ok) {
   configError.classList.remove('hidden');
@@ -195,7 +196,12 @@ async function copyTeacherKey() {
 
   try {
     await navigator.clipboard.writeText(teacherKey);
-    teacherStatus.textContent = '已複製老師密鑰。';
+    const copiedMessage = '已複製老師密鑰。';
+    teacherStatus.textContent = copiedMessage;
+    window.clearTimeout(teacherStatusTimer);
+    teacherStatusTimer = window.setTimeout(() => {
+      if (teacherStatus.textContent === copiedMessage) teacherStatus.textContent = '';
+    }, 2500);
   } catch (error) {
     console.error(error);
     teacherStatus.textContent = '無法複製老師密鑰，請改用「顯示」查看。';
