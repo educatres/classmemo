@@ -33,6 +33,7 @@ const refreshButton = document.querySelector('#refresh-board');
 const clearBoardButton = document.querySelector('#clear-board');
 const syncStatus = document.querySelector('#sync-status');
 const noteCount = document.querySelector('#note-count');
+const studentEditStatus = document.querySelector('#student-edit-status');
 const teacherLoginToggle = document.querySelector('#teacher-login-toggle');
 const teacherPanel = document.querySelector('#teacher-panel');
 const teacherLoginForm = document.querySelector('#teacher-login-form');
@@ -41,6 +42,8 @@ const teacherLoginStatus = document.querySelector('#teacher-login-status');
 const teacherActions = document.querySelector('#teacher-actions');
 const teacherStatus = document.querySelector('#teacher-status');
 const teacherKeyValue = document.querySelector('#teacher-key-value');
+const toggleTeacherKeyButton = document.querySelector('#toggle-teacher-key');
+const copyTeacherKeyButton = document.querySelector('#copy-teacher-key');
 const boardExpiry = document.querySelector('#board-expiry');
 const freezeBoard = document.querySelector('#freeze-board');
 const importBoardButton = document.querySelector('#import-board');
@@ -61,6 +64,8 @@ let boardSettings = null;
 let isTeacher = false;
 let expiryTimer;
 let isExpiryCleanupRunning = false;
+let teacherKey = '';
+let isTeacherKeyVisible = false;
 
 if (!parsed.ok) {
   configError.classList.remove('hidden');
@@ -79,6 +84,8 @@ function boot() {
   teacherLoginToggle.addEventListener('click', () => teacherPanel.classList.toggle('hidden'));
   teacherLoginForm.addEventListener('submit', signInAsTeacher);
   freezeBoard.addEventListener('change', updateFrozenState);
+  toggleTeacherKeyButton.addEventListener('click', toggleTeacherKeyVisibility);
+  copyTeacherKeyButton.addEventListener('click', copyTeacherKey);
   importBoardButton.addEventListener('click', () => importBoardFile.click());
   importBoardFile.addEventListener('change', importBoardData);
   downloadBoardButton.addEventListener('click', downloadBoardData);
@@ -101,13 +108,18 @@ async function applyBoardSettings(settings) {
   teacherActions.classList.toggle('hidden', !isTeacher);
   teacherLoginForm.classList.toggle('hidden', isTeacher);
   clearBoardButton.classList.toggle('hidden', !isTeacher);
+  studentEditStatus.textContent = settings?.created_at
+    ? `（${settings.frozen ? '學生不可編輯' : '學生可編輯'}）`
+    : '';
 
   if (!settings?.created_at) {
     teacherLoginStatus.textContent = '這張白板尚未設定老師密鑰。';
   } else if (isTeacher) {
     teacherLoginStatus.textContent = '';
-    teacherStatus.textContent = settings.frozen ? '學生編輯已凍結。' : '學生目前可以編輯。';
-    teacherKeyValue.textContent = await getTeacherKey(config.boardId) || '讀取中…';
+    teacherStatus.textContent = '';
+    teacherKey = await getTeacherKey(config.boardId) || '';
+    isTeacherKeyVisible = false;
+    renderTeacherKey();
   }
 
   updateBoardExpiry();
@@ -140,13 +152,41 @@ async function updateFrozenState() {
   freezeBoard.disabled = true;
   try {
     await setBoardFrozen(config.boardId, freezeBoard.checked);
-    teacherStatus.textContent = freezeBoard.checked ? '學生編輯已凍結。' : '學生目前可以編輯。';
+    teacherStatus.textContent = '已更新學生編輯權限。';
   } catch (error) {
     console.error(error);
     freezeBoard.checked = Boolean(boardSettings?.frozen);
     teacherStatus.textContent = '無法更新凍結狀態，請稍後再試。';
   } finally {
     freezeBoard.disabled = false;
+  }
+}
+
+function renderTeacherKey() {
+  teacherKeyValue.textContent = teacherKey
+    ? (isTeacherKeyVisible ? teacherKey : '••••••')
+    : '讀取中…';
+  toggleTeacherKeyButton.textContent = isTeacherKeyVisible ? '隱藏' : '顯示';
+  toggleTeacherKeyButton.setAttribute('aria-pressed', String(isTeacherKeyVisible));
+  toggleTeacherKeyButton.disabled = !teacherKey;
+  copyTeacherKeyButton.disabled = !teacherKey;
+}
+
+function toggleTeacherKeyVisibility() {
+  if (!teacherKey) return;
+  isTeacherKeyVisible = !isTeacherKeyVisible;
+  renderTeacherKey();
+}
+
+async function copyTeacherKey() {
+  if (!teacherKey) return;
+
+  try {
+    await navigator.clipboard.writeText(teacherKey);
+    teacherStatus.textContent = '已複製老師密鑰。';
+  } catch (error) {
+    console.error(error);
+    teacherStatus.textContent = '無法複製老師密鑰，請改用「顯示」查看。';
   }
 }
 

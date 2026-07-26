@@ -483,6 +483,23 @@ code {
   min-width: 0;
 }
 
+.toolbar-label-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.toolbar-label-row .eyebrow {
+  margin: 0;
+}
+
+.student-edit-status {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
 .toolbar h1 {
   font-size: clamp(1.4rem, 3vw, 2.4rem);
 }
@@ -562,6 +579,7 @@ code {
 
 .teacher-key-display {
   display: inline-flex;
+  gap: 8px;
   align-items: center;
   min-height: 46px;
   padding: 0 14px;
@@ -574,6 +592,11 @@ code {
 .teacher-key-display b {
   margin-left: 6px;
   letter-spacing: 0.12em;
+}
+
+.teacher-key-display .ghost-btn {
+  min-height: 32px;
+  padding: 0 10px;
 }
 
 .sync-pill {
@@ -856,8 +879,13 @@ body.ui-hidden .board {
     padding: 8px 10px;
   }
 
-  .toolbar .eyebrow {
-    display: none;
+  .toolbar-label-row {
+    gap: 4px;
+  }
+
+  .toolbar .eyebrow,
+  .student-edit-status {
+    font-size: 0.7rem;
   }
 
   .toolbar h1 {

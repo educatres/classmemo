@@ -16,7 +16,10 @@
     <main id="board-app" class="board-app hidden">
       <header class="toolbar">
         <div class="toolbar-title">
-          <p class="eyebrow">匿名協作白板</p>
+          <div class="toolbar-label-row">
+            <p class="eyebrow">匿名協作白板</p>
+            <span id="student-edit-status" class="student-edit-status">（讀取中）</span>
+          </div>
           <h1>classMemo 教室便條貼</h1>
         </div>
         <div class="toolbar-actions">
@@ -47,7 +50,11 @@
             <input id="freeze-board" type="checkbox" />
             <span>凍結學生編輯</span>
           </label>
-          <span class="teacher-key-display">老師密鑰：<b id="teacher-key-value">讀取中…</b></span>
+          <div class="teacher-key-display">
+            <span>老師密鑰：<b id="teacher-key-value">••••••</b></span>
+            <button class="ghost-btn" id="toggle-teacher-key" type="button" aria-pressed="false">顯示</button>
+            <button class="ghost-btn" id="copy-teacher-key" type="button">複製</button>
+          </div>
           <span id="teacher-status" class="status-line">老師控制台已登入。</span>
           <button class="ghost-btn" id="import-board" type="button">匯入白板 JSON</button>
           <input id="import-board-file" type="file" accept="application/json,.json" hidden />
