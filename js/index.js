@@ -1,4 +1,4 @@
-import { buildBoardUrl, generateId } from './config.js';
+import { buildBoardUrl, generateBoardId } from './config.js';
 import { BOARD_LIFETIME_MS, createBoard, deleteBoard, subscribeToBoardCatalog } from './firebase-store.js';
 import { renderQr } from './qr.js';
 
@@ -18,7 +18,7 @@ const boardDirectoryList = document.querySelector('#board-directory-list');
 const teacherKey = document.querySelector('#teacher-key');
 const studentKey = document.querySelector('#student-key');
 
-let boardId = generateId('board');
+let boardId = generateBoardId();
 let latestBoards = [];
 const attemptedExpiredBoardCleanup = new Set();
 
@@ -40,7 +40,7 @@ form.addEventListener('submit', async (event) => {
     resultPanel.classList.remove('hidden');
     copyStatus.textContent = '白板連結已產生。';
     setupStatus.textContent = '白板已建立。請記下老師六位數密鑰，再分享白板連結給學生。';
-    boardId = generateId('board');
+    boardId = generateBoardId();
   } catch (error) {
     console.error(error);
     setupStatus.textContent = error.message || '白板建立失敗，請確認六位數密鑰後再試。';

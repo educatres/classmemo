@@ -5,6 +5,12 @@ export function generateId(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Array.from(random, (value) => value.toString(36)).join('')}`;
 }
 
+export function generateBoardId() {
+  const random = crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000_000;
+  const digits = String(random).padStart(9, '0');
+  return `b${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 export function buildConfigFromParams(search = window.location.search) {
   const params = new URLSearchParams(search);
   const missing = REQUIRED_PARAMS.filter((key) => !params.get(key));
