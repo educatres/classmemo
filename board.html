@@ -29,17 +29,6 @@
         </div>
       </header>
 
-      <section id="student-access-panel" class="student-access-panel hidden" aria-live="polite">
-        <form id="student-login-form" class="teacher-login-form">
-          <label>
-            <span>學生三位數登入密鑰</span>
-            <input id="student-login-pin" type="password" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{3}" minlength="3" maxlength="3" required />
-          </label>
-          <button class="primary-btn" type="submit">進入白板</button>
-          <p id="student-login-status" class="status-line"></p>
-        </form>
-      </section>
-
       <section id="teacher-panel" class="teacher-panel hidden" aria-live="polite">
         <div class="teacher-panel-heading">
           <div class="teacher-workspace-row">
@@ -91,6 +80,29 @@
       <button class="floating-add-note" id="add-note" type="button" aria-label="新增便條貼">+</button>
       <button class="show-ui-btn" type="button" data-show-ui>顯示</button>
     </main>
+
+    <section id="student-access-panel" class="board-access-gate hidden" aria-live="polite" aria-labelledby="board-access-title">
+      <div class="board-access-card">
+        <p class="eyebrow">classMemo</p>
+        <h1 id="board-access-title">請輸入密鑰以進入白板</h1>
+        <form id="student-login-form" class="teacher-login-form">
+          <label>
+            <span>學生三位數登入密鑰</span>
+            <input id="student-login-pin" type="password" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{3}" minlength="3" maxlength="3" required />
+          </label>
+          <button class="primary-btn" type="submit">進入白板</button>
+        </form>
+        <button id="gate-teacher-login-toggle" class="ghost-btn" type="button">使用老師六位數密鑰登入</button>
+        <form id="gate-teacher-login-form" class="teacher-login-form hidden">
+          <label>
+            <span>老師六位數登入密鑰</span>
+            <input id="gate-teacher-login-pin" type="password" inputmode="numeric" autocomplete="current-password" pattern="[0-9]{6}" minlength="6" maxlength="6" required />
+          </label>
+          <button class="primary-btn" type="submit">登入老師控制台</button>
+        </form>
+        <p id="student-login-status" class="status-line"></p>
+      </div>
+    </section>
 
     <section id="board-qr-modal" class="qr-modal hidden" role="dialog" aria-modal="true" aria-labelledby="board-qr-title">
       <div class="qr-modal-card">

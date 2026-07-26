@@ -522,13 +522,34 @@ code {
   background: rgba(255, 253, 242, 0.92);
 }
 
-.student-access-panel {
-  padding: 14px clamp(16px, 4vw, 34px);
-  border-bottom: 1px solid rgba(107, 91, 59, 0.16);
-  background: rgba(255, 253, 242, 0.92);
+.board-access-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 1600;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(25, 34, 29, 0.48);
 }
 
-.student-access-panel .status-line {
+.board-access-card {
+  display: grid;
+  justify-items: start;
+  gap: 14px;
+  width: min(460px, 100%);
+  padding: 32px;
+  border-radius: 24px;
+  background: #fffdf7;
+  box-shadow: 0 22px 54px rgba(20, 28, 24, 0.3);
+}
+
+.board-access-card h1 {
+  margin: 0;
+  font-size: clamp(1.65rem, 5vw, 2.35rem);
+}
+
+.board-access-card .status-line {
+  min-height: 1.5em;
   margin: 0;
 }
 
@@ -757,6 +778,12 @@ code {
 
 body.ui-hidden .toolbar {
   display: none;
+}
+
+body.board-locked .board-app {
+  filter: blur(3px);
+  pointer-events: none;
+  user-select: none;
 }
 
 body.ui-hidden .sync-watermark {
@@ -1020,6 +1047,10 @@ body.ui-hidden .board {
 
   .qr-modal-card {
     padding: 28px 20px 24px;
+  }
+
+  .board-access-card {
+    padding: 26px 20px;
   }
 
   .floating-add-note {

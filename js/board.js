@@ -51,6 +51,9 @@ const studentAccessPanel = document.querySelector('#student-access-panel');
 const studentLoginForm = document.querySelector('#student-login-form');
 const studentLoginPin = document.querySelector('#student-login-pin');
 const studentLoginStatus = document.querySelector('#student-login-status');
+const gateTeacherLoginToggle = document.querySelector('#gate-teacher-login-toggle');
+const gateTeacherLoginForm = document.querySelector('#gate-teacher-login-form');
+const gateTeacherLoginPin = document.querySelector('#gate-teacher-login-pin');
 const teacherLoginToggle = document.querySelector('#teacher-login-toggle');
 const teacherPanel = document.querySelector('#teacher-panel');
 const teacherLoginForm = document.querySelector('#teacher-login-form');
@@ -105,11 +108,17 @@ if (!parsed.ok) {
 }
 
 function boot() {
+  lockBoard('請輸入學生三位數或老師六位數密鑰。');
   enableBoardPan(board);
   enableUiVisibility(boardApp);
   addNoteButton.addEventListener('click', createNote);
   clearBoardButton.addEventListener('click', clearBoard);
   studentLoginForm.addEventListener('submit', signInAsStudent);
+  gateTeacherLoginToggle.addEventListener('click', () => {
+    gateTeacherLoginForm.classList.toggle('hidden');
+    if (!gateTeacherLoginForm.classList.contains('hidden')) gateTeacherLoginPin.focus();
+  });
+  gateTeacherLoginForm.addEventListener('submit', signInAsTeacherFromGate);
   teacherLoginToggle.addEventListener('click', () => teacherPanel.classList.toggle('hidden'));
   teacherLoginForm.addEventListener('submit', signInAsTeacher);
   freezeBoard.addEventListener('change', updateFrozenState);
@@ -142,15 +151,13 @@ function boot() {
 
 async function initializeBoardAccess() {
   if (!config.studentKey) {
-    syncFromFirebase();
+    showStudentLogin('請輸入學生三位數或老師六位數密鑰。');
     return;
   }
 
   studentLoginStatus.textContent = '正在使用連結中的學生密鑰登入…';
   try {
     await claimStudentAccess(config.boardId, config.studentKey);
-    studentAccessPanel.classList.add('hidden');
-    studentLoginStatus.textContent = '';
     syncFromFirebase();
   } catch (error) {
     console.error(error);
@@ -165,8 +172,6 @@ async function signInAsStudent(event) {
   try {
     await claimStudentAccess(config.boardId, studentLoginPin.value);
     studentLoginPin.value = '';
-    studentAccessPanel.classList.add('hidden');
-    studentLoginStatus.textContent = '';
     syncFromFirebase();
   } catch (error) {
     console.error(error);
@@ -175,8 +180,19 @@ async function signInAsStudent(event) {
 }
 
 function showStudentLogin(message) {
+  lockBoard(message);
+}
+
+function lockBoard(message = '') {
+  document.body.classList.add('board-locked');
   studentAccessPanel.classList.remove('hidden');
-  studentLoginStatus.textContent = message;
+  if (message) studentLoginStatus.textContent = message;
+}
+
+function unlockBoard() {
+  document.body.classList.remove('board-locked');
+  studentAccessPanel.classList.add('hidden');
+  studentLoginStatus.textContent = '';
 }
 
 async function applyBoardSettings(settings) {
@@ -220,16 +236,33 @@ async function signInAsTeacher(event) {
   teacherLoginStatus.textContent = '正在登入老師控制台…';
 
   try {
-    await claimTeacherAccess(config.boardId, teacherLoginPin.value);
+    await completeTeacherSignIn(teacherLoginPin.value);
     teacherLoginPin.value = '';
-    boardSettings = await getBoardSettings(config.boardId);
-    await applyBoardSettings(boardSettings);
-    studentAccessPanel.classList.add('hidden');
-    syncFromFirebase();
   } catch (error) {
     console.error(error);
     teacherLoginStatus.textContent = '登入失敗，請確認六位數密鑰。';
   }
+}
+
+async function signInAsTeacherFromGate(event) {
+  event.preventDefault();
+  studentLoginStatus.textContent = '正在登入老師控制台…';
+
+  try {
+    await completeTeacherSignIn(gateTeacherLoginPin.value);
+    gateTeacherLoginPin.value = '';
+  } catch (error) {
+    console.error(error);
+    studentLoginStatus.textContent = '登入失敗，請確認六位數老師密鑰。';
+  }
+}
+
+async function completeTeacherSignIn(pin) {
+  await claimTeacherAccess(config.boardId, pin);
+  boardSettings = await getBoardSettings(config.boardId);
+  await applyBoardSettings(boardSettings);
+  unlockBoard();
+  syncFromFirebase();
 }
 
 async function updateFrozenState() {
@@ -506,6 +539,7 @@ async function syncFromFirebase(options = {}) {
       config.boardId,
       (remoteNotes) => {
         hasBoardAccess = true;
+        unlockBoard();
         mergeRemoteNotes(remoteNotes);
         setSyncStatus(`即時同步中 · ${new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
       },
