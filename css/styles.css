@@ -88,11 +88,15 @@ h2 {
   font-size: clamp(1.4rem, 3vw, 2.2rem);
 }
 
+.hero-title {
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+}
+
 .hero-text {
   max-width: 760px;
   margin: 18px 0 0;
   color: var(--muted);
-  font-size: 1.08rem;
+  font-size: 0.98rem;
   line-height: 1.8;
 }
 
@@ -340,9 +344,10 @@ code {
 }
 
 .secret-directory-entry {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 18px;
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 10;
 }
 
 .secret-directory-toggle {
@@ -351,14 +356,14 @@ code {
   padding: 0;
   border: 0;
   background: transparent;
-  opacity: 0.08;
+  opacity: 0.35;
   font-size: 1rem;
   filter: grayscale(1);
 }
 
 .secret-directory-toggle:hover,
 .secret-directory-toggle:focus-visible {
-  opacity: 0.55;
+  opacity: 0.8;
 }
 
 .board-directory-panel {
