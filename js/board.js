@@ -23,6 +23,16 @@ import { enableUiVisibility } from './ui-visibility.js';
 const DEFAULT_NOTE = { width: 180, height: 120, color: 'yellow' };
 const COLORS = ['yellow', 'pink', 'blue', 'green', 'purple', 'orange'];
 const SYNC_INTERVAL_MS = 10000;
+const EXPORT_PADDING = 56;
+const EXPORT_MIN_SIZE = { width: 1700, height: 1100 };
+const NOTE_COLORS = {
+  yellow: '#ffe680',
+  pink: '#ffc2d4',
+  blue: '#addcff',
+  green: '#bfe8b8',
+  purple: '#d7c5ff',
+  orange: '#ffc07a',
+};
 
 const configError = document.querySelector('#config-error');
 const boardApp = document.querySelector('#board-app');
@@ -50,6 +60,8 @@ const importBoardButton = document.querySelector('#import-board');
 const importBoardFile = document.querySelector('#import-board-file');
 const showBoardQrButton = document.querySelector('#show-board-qr');
 const downloadBoardButton = document.querySelector('#download-board');
+const downloadBoardPngButton = document.querySelector('#download-board-png');
+const downloadBoardSvgButton = document.querySelector('#download-board-svg');
 const deleteBoardButton = document.querySelector('#delete-board');
 const boardQrModal = document.querySelector('#board-qr-modal');
 const closeBoardQrButton = document.querySelector('#close-board-qr');
@@ -95,6 +107,8 @@ function boot() {
   importBoardFile.addEventListener('change', importBoardData);
   showBoardQrButton.addEventListener('click', openBoardQrModal);
   downloadBoardButton.addEventListener('click', downloadBoardData);
+  downloadBoardPngButton.addEventListener('click', () => downloadBoardImage('png'));
+  downloadBoardSvgButton.addEventListener('click', () => downloadBoardImage('svg'));
   deleteBoardButton.addEventListener('click', removeBoard);
   closeBoardQrButton.addEventListener('click', closeBoardQrModal);
   boardQrModal.addEventListener('click', (event) => {
@@ -225,6 +239,134 @@ async function downloadBoardData() {
     console.error(error);
     teacherStatus.textContent = '資料下載失敗，請稍後再試。';
   }
+}
+
+async function downloadBoardImage(format) {
+  if (!isTeacher) return;
+
+  try {
+    teacherStatus.textContent = `正在產生白板 ${format.toUpperCase()}…`;
+    const exportData = createBoardExport();
+    const fileName = `${config.boardId}-whiteboard`;
+
+    if (format === 'svg') {
+      downloadBlob(new Blob([exportData.svg], { type: 'image/svg+xml;charset=utf-8' }), `${fileName}.svg`);
+    } else {
+      downloadBlob(await createPngFromSvg(exportData), `${fileName}.png`);
+    }
+
+    teacherStatus.textContent = `已下載白板 ${format.toUpperCase()}。`;
+  } catch (error) {
+    console.error(error);
+    teacherStatus.textContent = `白板 ${format.toUpperCase()} 下載失敗，請稍後再試。`;
+  }
+}
+
+function createBoardExport() {
+  const exportNotes = [...notes.values()].sort((first, second) => Number(first.z_index) - Number(second.z_index));
+  const bounds = exportNotes.reduce((current, note) => ({
+    left: Math.min(current.left, Number(note.x) || 0),
+    top: Math.min(current.top, Number(note.y) || 0),
+    right: Math.max(current.right, (Number(note.x) || 0) + (Number(note.width) || DEFAULT_NOTE.width)),
+    bottom: Math.max(current.bottom, (Number(note.y) || 0) + (Number(note.height) || DEFAULT_NOTE.height)),
+  }), { left: 0, top: 0, right: EXPORT_MIN_SIZE.width, bottom: EXPORT_MIN_SIZE.height });
+  const left = Math.min(0, bounds.left - EXPORT_PADDING);
+  const top = Math.min(0, bounds.top - EXPORT_PADDING);
+  const width = Math.ceil(Math.max(EXPORT_MIN_SIZE.width, bounds.right - left + EXPORT_PADDING));
+  const height = Math.ceil(Math.max(EXPORT_MIN_SIZE.height, bounds.bottom - top + EXPORT_PADDING));
+  const noteMarkup = exportNotes.map((note) => renderExportNote(note, left, top)).join('');
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#dbe0dc" stroke-width="1" />
+    </pattern>
+    <filter id="note-shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#342b1c" flood-opacity="0.2" />
+    </filter>
+  </defs>
+  <rect width="100%" height="100%" fill="#fffdf7" />
+  <rect width="100%" height="100%" fill="url(#grid)" />
+  ${noteMarkup}
+</svg>`;
+
+  return { svg, width, height };
+}
+
+function renderExportNote(note, left, top) {
+  const width = Math.max(120, Number(note.width) || DEFAULT_NOTE.width);
+  const height = Math.max(80, Number(note.height) || DEFAULT_NOTE.height);
+  const x = Math.round((Number(note.x) || 0) - left);
+  const y = Math.round((Number(note.y) || 0) - top);
+  const noteText = editingNotes.has(note.note_id)
+    ? note.element.querySelector('.note-editor').value
+    : note.text || '';
+  const lineLength = Math.max(5, Math.floor((width - 24) / 17));
+  const lines = wrapExportText(noteText, lineLength);
+  const lineMarkup = lines.map((line, index) => `<tspan x="12" dy="${index === 0 ? 0 : 26}">${escapeXml(line)}</tspan>`).join('');
+  const color = NOTE_COLORS[note.color] || NOTE_COLORS.yellow;
+
+  return `<g transform="translate(${x} ${y})" filter="url(#note-shadow)">
+    <rect width="${width}" height="${height}" rx="5" fill="${color}" />
+    <text x="12" y="34" fill="#27322c" font-family="Arial, 'Noto Sans TC', sans-serif" font-size="17" font-weight="700">${lineMarkup}</text>
+  </g>`;
+}
+
+function wrapExportText(text, lineLength) {
+  const lines = [];
+  for (const paragraph of String(text).split('\n')) {
+    if (!paragraph) {
+      lines.push('');
+      continue;
+    }
+    for (let index = 0; index < paragraph.length; index += lineLength) {
+      lines.push(paragraph.slice(index, index + lineLength));
+    }
+  }
+  return lines.length > 0 ? lines : [''];
+}
+
+function escapeXml(value) {
+  return String(value).replace(/[<>&'"]/g, (character) => ({
+    '<': '&lt;',
+    '>': '&gt;',
+    '&': '&amp;',
+    "'": '&apos;',
+    '"': '&quot;',
+  })[character]);
+}
+
+async function createPngFromSvg({ svg, width, height }) {
+  const maxSide = 4096;
+  const scale = Math.min(2, maxSide / width, maxSide / height);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.floor(width * scale));
+  canvas.height = Math.max(1, Math.floor(height * scale));
+  const context = canvas.getContext('2d');
+  const svgUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }));
+  const image = new Image();
+
+  try {
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error('SVG 轉換失敗'));
+      image.src = svgUrl;
+    });
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const png = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    if (!png) throw new Error('PNG 轉換失敗');
+    return png;
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 async function importBoardData() {

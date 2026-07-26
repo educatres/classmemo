@@ -31,7 +31,10 @@
 
       <section id="teacher-panel" class="teacher-panel hidden" aria-live="polite">
         <div class="teacher-panel-heading">
-          <p class="eyebrow">Teacher workspace</p>
+          <div class="teacher-workspace-row">
+            <p class="eyebrow">Teacher workspace</p>
+            <span id="teacher-status" class="status-line"></span>
+          </div>
           <p id="board-expiry" class="status-line">正在計算白板有效時間…</p>
         </div>
         <form id="teacher-login-form" class="teacher-login-form">
@@ -51,11 +54,12 @@
             <button class="ghost-btn" id="toggle-teacher-key" type="button" aria-pressed="false">顯示</button>
             <button class="ghost-btn" id="copy-teacher-key" type="button">複製</button>
           </div>
-          <span id="teacher-status" class="status-line">老師控制台已登入。</span>
           <button class="ghost-btn" id="import-board" type="button">匯入白板 JSON</button>
           <input id="import-board-file" type="file" accept="application/json,.json" hidden />
           <button class="ghost-btn" id="show-board-qr" type="button">顯示連結 QR Code</button>
           <button class="ghost-btn" id="download-board" type="button">下載本白板資料 JSON</button>
+          <button class="ghost-btn" id="download-board-png" type="button">下載白板 PNG</button>
+          <button class="ghost-btn" id="download-board-svg" type="button">下載白板 SVG</button>
           <button class="ghost-btn danger-btn" id="clear-board" type="button">清除所有</button>
           <button class="ghost-btn danger-btn" id="delete-board" type="button">刪除本白板</button>
         </div>

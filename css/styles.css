@@ -526,8 +526,16 @@ code {
   flex: 1 1 100%;
 }
 
+.teacher-workspace-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  align-items: baseline;
+}
+
 .teacher-panel-heading .section-heading,
-.teacher-panel-heading .eyebrow {
+.teacher-panel-heading .eyebrow,
+.teacher-workspace-row .status-line {
   margin: 0;
 }
 
