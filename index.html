@@ -47,7 +47,19 @@
         </aside>
       </div>
 
-      <section class="panel board-list-panel" aria-labelledby="board-list-title">
+      <section id="recent-board-panel" class="panel board-list-panel" aria-labelledby="recent-board-title">
+        <div class="section-heading recent-board-heading">
+          <div>
+            <p class="eyebrow">This browser</p>
+            <h2 id="recent-board-title">本瀏覽器開啟過的白板</h2>
+          </div>
+          <button id="clear-local-boards" class="ghost-btn" type="button">清除本機記錄</button>
+        </div>
+        <p id="recent-board-status" class="status-line"></p>
+        <ul id="recent-board-list" class="board-list" aria-live="polite"></ul>
+      </section>
+
+      <section id="board-list-panel" class="panel board-list-panel hidden" aria-labelledby="board-list-title">
         <div class="section-heading">
           <p class="eyebrow">Whiteboards</p>
           <h2 id="board-list-title">目前所有白板</h2>
@@ -89,6 +101,7 @@
       </section>
 
       <div class="secret-directory-entry">
+        <button id="board-list-toggle" class="secret-directory-toggle" type="button" aria-label="顯示目前所有白板" aria-expanded="false">▤</button>
         <button id="board-directory-toggle" class="secret-directory-toggle" type="button" aria-label="顯示白板 Firebase ID" aria-expanded="false">🔑</button>
       </div>
 

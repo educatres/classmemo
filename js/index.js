@@ -1,5 +1,6 @@
 import { buildBoardUrl, generateBoardId } from './config.js';
 import { BOARD_LIFETIME_MS, createBoard, deleteBoard, subscribeToBoardCatalog } from './firebase-store.js';
+import { clearOpenedBoards, getOpenedBoards } from './local-boards.js';
 import { renderQr } from './qr.js';
 
 const form = document.querySelector('#setup-form');
@@ -12,11 +13,16 @@ const setupStatus = document.querySelector('#setup-status');
 const qrCode = document.querySelector('#qr-code');
 const boardList = document.querySelector('#board-list');
 const boardListStatus = document.querySelector('#board-list-status');
+const boardListPanel = document.querySelector('#board-list-panel');
+const boardListToggle = document.querySelector('#board-list-toggle');
 const boardDirectoryToggle = document.querySelector('#board-directory-toggle');
 const boardDirectoryPanel = document.querySelector('#board-directory-panel');
 const boardDirectoryList = document.querySelector('#board-directory-list');
 const teacherKey = document.querySelector('#teacher-key');
 const studentKey = document.querySelector('#student-key');
+const recentBoardList = document.querySelector('#recent-board-list');
+const recentBoardStatus = document.querySelector('#recent-board-status');
+const clearLocalBoardsButton = document.querySelector('#clear-local-boards');
 
 let boardId = generateBoardId();
 let latestBoards = [];
@@ -52,6 +58,16 @@ boardDirectoryToggle.addEventListener('click', () => {
   boardDirectoryToggle.setAttribute('aria-expanded', String(!isHidden));
 });
 
+boardListToggle.addEventListener('click', () => {
+  const isHidden = boardListPanel.classList.toggle('hidden');
+  boardListToggle.setAttribute('aria-expanded', String(!isHidden));
+});
+
+clearLocalBoardsButton.addEventListener('click', () => {
+  clearOpenedBoards();
+  renderRecentBoards();
+});
+
 copyButton.addEventListener('click', async () => {
   if (!studentLink.value) return;
 
@@ -68,12 +84,18 @@ copyButton.addEventListener('click', async () => {
 subscribeToBoardCatalog((boards) => {
   latestBoards = boards;
   renderBoardList(boards);
+  renderRecentBoards();
   renderBoardDirectory(boards);
   cleanupExpiredBoards(boards);
 }, () => {
   boardListStatus.textContent = '目前無法讀取白板清單，請稍後重新整理。';
 });
-window.setInterval(() => renderBoardList(latestBoards), 60000);
+window.setInterval(() => {
+  renderBoardList(latestBoards);
+  renderRecentBoards();
+}, 60000);
+
+renderRecentBoards();
 
 function renderBoardList(boards) {
   boardList.replaceChildren();
@@ -107,6 +129,41 @@ function renderBoardList(boards) {
 
     item.append(details, link);
     boardList.append(item);
+  }
+}
+
+function renderRecentBoards() {
+  const catalogById = new Map(latestBoards.map((board) => [board.board_id, board]));
+  const boards = getOpenedBoards();
+  recentBoardList.replaceChildren();
+
+  if (boards.length === 0) {
+    recentBoardStatus.textContent = '尚無本機白板記錄。開啟白板並成功登入後，會顯示在這裡。';
+    return;
+  }
+
+  recentBoardStatus.textContent = `已記錄 ${boards.length} 張白板；僅儲存在這個瀏覽器。`;
+  for (const localBoard of boards) {
+    const catalogBoard = catalogById.get(localBoard.boardId);
+    const createdAt = Number(catalogBoard?.created_at || localBoard.createdAt);
+    const remaining = createdAt ? createdAt + BOARD_LIFETIME_MS - Date.now() : NaN;
+    const item = document.createElement('li');
+    item.className = 'board-list-item';
+    const details = document.createElement('div');
+    const title = document.createElement('strong');
+    const meta = document.createElement('span');
+    title.textContent = localBoard.boardId;
+    meta.textContent = Number.isFinite(remaining)
+      ? (remaining > 0 ? `距離失效：${formatRemainingTime(remaining)}` : '已到期，資料可能已自動清除。')
+      : '暫時無法取得失效時間。';
+    details.append(title, meta);
+
+    const link = document.createElement('a');
+    link.className = 'ghost-btn as-link';
+    link.href = buildBoardUrl({ board_id: localBoard.boardId, student_key: localBoard.studentKey });
+    link.textContent = '再次開啟';
+    item.append(details, link);
+    recentBoardList.append(item);
   }
 }
 

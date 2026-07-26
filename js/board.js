@@ -1,4 +1,5 @@
 import { buildBoardUrl, buildConfigFromParams, generateId } from './config.js';
+import { getOpenedBoard, saveOpenedBoard } from './local-boards.js';
 import {
   BOARD_LIFETIME_MS,
   claimStudentAccess,
@@ -150,10 +151,14 @@ function boot() {
 }
 
 async function initializeBoardAccess() {
-  if (!config.studentKey) {
+  const rememberedBoard = getOpenedBoard(config.boardId);
+  const studentKeyToUse = config.studentKey || rememberedBoard?.studentKey;
+  if (!studentKeyToUse) {
     showStudentLogin('請輸入學生三位數或老師六位數密鑰。');
     return;
   }
+
+  config.studentKey = studentKeyToUse;
 
   studentLoginStatus.textContent = '正在使用連結中的學生密鑰登入…';
   try {
@@ -171,6 +176,12 @@ async function signInAsStudent(event) {
 
   try {
     await claimStudentAccess(config.boardId, studentLoginPin.value);
+    config.studentKey = studentLoginPin.value;
+    saveOpenedBoard({
+      boardId: config.boardId,
+      studentKey: config.studentKey,
+      createdAt: boardSettings?.created_at,
+    });
     studentLoginPin.value = '';
     syncFromFirebase();
   } catch (error) {
@@ -224,6 +235,14 @@ async function applyBoardSettings(settings) {
 
   updateBoardExpiry();
   applyEditingState();
+  if (config.studentKey || isTeacher) {
+    saveOpenedBoard({
+      boardId: config.boardId,
+      studentKey: config.studentKey,
+      teacherKey: isTeacher ? teacherKey : undefined,
+      createdAt: settings?.created_at,
+    });
+  }
 }
 
 function handleBoardSettingsError(error) {
@@ -261,6 +280,12 @@ async function completeTeacherSignIn(pin) {
   await claimTeacherAccess(config.boardId, pin);
   boardSettings = await getBoardSettings(config.boardId);
   await applyBoardSettings(boardSettings);
+  saveOpenedBoard({
+    boardId: config.boardId,
+    studentKey: studentBoardKey,
+    teacherKey: pin,
+    createdAt: boardSettings?.created_at,
+  });
   unlockBoard();
   syncFromFirebase();
 }

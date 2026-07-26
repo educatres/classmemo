@@ -411,6 +411,17 @@ code {
   font-size: 0.9rem;
 }
 
+.recent-board-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.recent-board-heading .section-heading {
+  margin: 0;
+}
+
 .result-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
