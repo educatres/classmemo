@@ -30,7 +30,6 @@
           <div class="actions">
             <button class="primary-btn" type="submit">產生白板連結</button>
             <a class="ghost-btn as-link" href="./demo.html">直接試玩展示</a>
-            <button class="ghost-btn" type="button" id="reset-board-id">重設白板 ID</button>
           </div>
           <p id="setup-status" class="status-line"></p>
         </form>
@@ -83,6 +82,18 @@
             <p>學生掃描後即可進入同一張匿名白板。</p>
           </div>
         </div>
+      </section>
+
+      <div class="secret-directory-entry">
+        <button id="board-directory-toggle" class="secret-directory-toggle" type="button" aria-label="顯示白板 Firebase ID" aria-expanded="false">🔑</button>
+      </div>
+
+      <section id="board-directory-panel" class="panel board-directory-panel hidden" aria-labelledby="board-directory-title">
+        <div class="section-heading">
+          <p class="eyebrow">Firebase directory</p>
+          <h2 id="board-directory-title">白板名稱與 Firebase ID</h2>
+        </div>
+        <ul id="board-directory-list" class="board-directory-list"></ul>
       </section>
     </main>
 

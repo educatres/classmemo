@@ -9,10 +9,12 @@ const copyButton = document.querySelector('#copy-link');
 const openBoard = document.querySelector('#open-board');
 const copyStatus = document.querySelector('#copy-status');
 const setupStatus = document.querySelector('#setup-status');
-const resetBoardIdButton = document.querySelector('#reset-board-id');
 const qrCode = document.querySelector('#qr-code');
 const boardList = document.querySelector('#board-list');
 const boardListStatus = document.querySelector('#board-list-status');
+const boardDirectoryToggle = document.querySelector('#board-directory-toggle');
+const boardDirectoryPanel = document.querySelector('#board-directory-panel');
+const boardDirectoryList = document.querySelector('#board-directory-list');
 const teacherKey = document.querySelector('#teacher-key');
 
 let boardId = generateId('board');
@@ -35,16 +37,16 @@ form.addEventListener('submit', async (event) => {
     resultPanel.classList.remove('hidden');
     copyStatus.textContent = '白板連結已產生。';
     setupStatus.textContent = '白板已建立。請記下老師六位數密鑰，再分享白板連結給學生。';
+    boardId = generateId('board');
   } catch (error) {
     console.error(error);
     setupStatus.textContent = error.message || '白板建立失敗，請確認六位數密鑰後再試。';
   }
 });
 
-resetBoardIdButton.addEventListener('click', () => {
-  boardId = generateId('board');
-  resultPanel.classList.add('hidden');
-  setupStatus.textContent = '已重設白板 ID；按「產生白板連結」即可建立新的空白白板。';
+boardDirectoryToggle.addEventListener('click', () => {
+  const isHidden = boardDirectoryPanel.classList.toggle('hidden');
+  boardDirectoryToggle.setAttribute('aria-expanded', String(!isHidden));
 });
 
 copyButton.addEventListener('click', async () => {
@@ -63,6 +65,7 @@ copyButton.addEventListener('click', async () => {
 subscribeToBoardCatalog((boards) => {
   latestBoards = boards;
   renderBoardList(boards);
+  renderBoardDirectory(boards);
   cleanupExpiredBoards(boards);
 }, () => {
   boardListStatus.textContent = '目前無法讀取白板清單，請稍後重新整理。';
@@ -101,6 +104,27 @@ function renderBoardList(boards) {
 
     item.append(details, link);
     boardList.append(item);
+  }
+}
+
+function renderBoardDirectory(boards) {
+  boardDirectoryList.replaceChildren();
+
+  if (boards.length === 0) {
+    const empty = document.createElement('li');
+    empty.textContent = '尚未建立白板。';
+    boardDirectoryList.append(empty);
+    return;
+  }
+
+  for (const board of boards) {
+    const item = document.createElement('li');
+    const name = document.createElement('strong');
+    const firebaseId = document.createElement('code');
+    name.textContent = `名稱：${board.board_name || board.board_id}`;
+    firebaseId.textContent = `Firebase ID：boards/${board.board_id}`;
+    item.append(name, firebaseId);
+    boardDirectoryList.append(item);
   }
 }
 

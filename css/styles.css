@@ -339,6 +339,54 @@ code {
   margin-top: 22px;
 }
 
+.secret-directory-entry {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.secret-directory-toggle {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0.08;
+  font-size: 1rem;
+  filter: grayscale(1);
+}
+
+.secret-directory-toggle:hover,
+.secret-directory-toggle:focus-visible {
+  opacity: 0.55;
+}
+
+.board-directory-panel {
+  margin-top: 12px;
+}
+
+.board-directory-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-directory-list li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(38, 49, 43, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 253, 247, 0.76);
+}
+
+.board-directory-list code {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+
 .board-list {
   display: grid;
   gap: 12px;
