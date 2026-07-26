@@ -39,11 +39,33 @@ export async function ensureSignedIn() {
 
 export async function subscribeToNotes(boardId, onNotes, onError) {
   await ensureSignedIn();
+  await registerBoard(boardId);
   return onValue(
     ref(database, `boards/${boardId}/notes`),
     (snapshot) => {
       const value = snapshot.val() || {};
       onNotes(Object.values(value));
+    },
+    onError,
+  );
+}
+
+export async function registerBoard(boardId) {
+  await ensureSignedIn();
+  await set(ref(database, `boardCatalog/${boardId}`), {
+    board_id: String(boardId),
+    updated_at: serverTimestamp(),
+  });
+}
+
+export async function subscribeToBoardCatalog(onBoards, onError) {
+  await ensureSignedIn();
+  return onValue(
+    ref(database, 'boardCatalog'),
+    (snapshot) => {
+      const boards = Object.values(snapshot.val() || {});
+      boards.sort((first, second) => Number(second.updated_at) - Number(first.updated_at));
+      onBoards(boards);
     },
     onError,
   );
@@ -70,14 +92,17 @@ export async function saveNote(boardId, note) {
   };
 
   await set(ref(database, `boards/${boardId}/notes/${note.note_id}`), payload);
+  await registerBoard(boardId);
 }
 
 export async function deleteNoteFromBoard(boardId, noteId) {
   await ensureSignedIn();
   await remove(ref(database, `boards/${boardId}/notes/${noteId}`));
+  await registerBoard(boardId);
 }
 
 export async function clearBoardNotes(boardId) {
   await ensureSignedIn();
   await remove(ref(database, `boards/${boardId}/notes`));
+  await registerBoard(boardId);
 }

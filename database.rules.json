@@ -12,6 +12,13 @@
           }
         }
       }
+    },
+    "boardCatalog": {
+      ".read": "auth != null",
+      "$boardId": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['board_id', 'updated_at']) && newData.child('board_id').isString() && newData.child('board_id').val() === $boardId && newData.child('updated_at').isNumber()"
+      }
     }
   }
 }

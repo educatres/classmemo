@@ -335,6 +335,45 @@ code {
   margin-top: 22px;
 }
 
+.board-list-panel {
+  margin-top: 22px;
+}
+
+.board-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board-list-item {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 253, 247, 0.76);
+}
+
+.board-list-item div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.board-list-item strong {
+  overflow-wrap: anywhere;
+}
+
+.board-list-item span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .result-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
