@@ -326,7 +326,13 @@ function createNoteElement(noteId) {
   text.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') startEditing(noteId);
   });
-  edit.addEventListener('click', () => startEditing(noteId));
+  edit.addEventListener('click', () => {
+    if (editingNotes.has(noteId)) {
+      finishEditing(noteId);
+    } else {
+      startEditing(noteId);
+    }
+  });
   remove.addEventListener('click', () => deleteNote(noteId));
   color.addEventListener('change', async () => {
     const note = notes.get(noteId);
@@ -344,8 +350,6 @@ function createNoteElement(noteId) {
       cancelEditing(noteId);
     }
   });
-  editor.addEventListener('blur', () => finishEditing(noteId));
-
   return element;
 }
 
@@ -426,6 +430,7 @@ function applyEditingState() {
     if (!editable) {
       editingNotes.delete(note.note_id);
       note.element.classList.remove('is-editing');
+      setEditButtonMode(note.element, false);
     }
   }
 }
@@ -445,6 +450,7 @@ function renderNote(note) {
   text.textContent = note.text || '空白便條貼';
   editor.value = note.text || '';
   color.value = COLORS.includes(note.color) ? note.color : 'yellow';
+  setEditButtonMode(element, false);
 }
 
 function startEditing(noteId) {
@@ -454,6 +460,7 @@ function startEditing(noteId) {
 
   editingNotes.add(noteId);
   note.element.classList.add('is-editing');
+  setEditButtonMode(note.element, true);
   const editor = note.element.querySelector('.note-editor');
   editor.value = note.text || '';
   window.setTimeout(() => {
@@ -472,6 +479,7 @@ async function finishEditing(noteId) {
   const nextText = editor.value.trim();
   editingNotes.delete(noteId);
   note.element.classList.remove('is-editing');
+  setEditButtonMode(note.element, false);
 
   if (nextText !== note.text) {
     note.text = nextText;
@@ -488,6 +496,12 @@ function cancelEditing(noteId) {
   editingNotes.delete(noteId);
   note.element.classList.remove('is-editing');
   renderNote(note);
+}
+
+function setEditButtonMode(element, isEditing) {
+  const edit = element.querySelector('.edit-note');
+  edit.textContent = isEditing ? '儲存' : '編輯';
+  edit.setAttribute('aria-label', isEditing ? '儲存' : '編輯');
 }
 
 async function deleteNote(noteId) {

@@ -677,7 +677,7 @@ body.ui-hidden .board {
   min-width: 120px;
   min-height: 80px;
   padding: 12px;
-  border-radius: 5px 20px 10px 18px;
+  border-radius: 5px;
   box-shadow: 0 16px 26px rgba(52, 43, 28, 0.2);
   touch-action: none;
   user-select: none;
@@ -728,6 +728,7 @@ body.ui-hidden .board {
   position: relative;
   z-index: 1;
   display: flex;
+  flex-wrap: nowrap;
   gap: 6px;
   align-items: center;
   margin-bottom: 8px;
@@ -750,6 +751,13 @@ body.ui-hidden .board {
   color: var(--ink);
   font-size: 0.78rem;
   font-weight: 900;
+}
+
+.note-action {
+  flex: 0 0 auto;
+  min-width: 58px;
+  padding: 0 12px;
+  white-space: nowrap;
 }
 
 .delete-note {
