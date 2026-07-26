@@ -17,6 +17,7 @@ export function buildConfigFromParams(search = window.location.search) {
     ok: true,
     config: {
       boardId: params.get('board_id'),
+      studentKey: params.get('student_key'),
     },
   };
 }

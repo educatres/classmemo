@@ -25,6 +25,12 @@ function validateTeacherPin(pin) {
   }
 }
 
+function validateStudentPin(pin) {
+  if (!/^\d{3}$/.test(pin)) {
+    throw new Error('學生登入密鑰必須是三位數字。');
+  }
+}
+
 export async function ensureSignedIn() {
   if (auth.currentUser) return auth.currentUser;
 
@@ -54,8 +60,9 @@ export async function subscribeToNotes(boardId, onNotes, onError) {
   );
 }
 
-export async function createBoard(boardId, teacherPin) {
+export async function createBoard(boardId, teacherPin, studentPin) {
   validateTeacherPin(teacherPin);
+  validateStudentPin(studentPin);
   const teacherUid = (await ensureSignedIn()).uid;
 
   await set(ref(database, `boards/${boardId}`), {
@@ -73,6 +80,13 @@ export async function createBoard(boardId, teacherPin) {
     created_at: serverTimestamp(),
   });
   await set(ref(database, `teacherKeys/${boardId}`), teacherPin);
+  await set(ref(database, `studentKeys/${boardId}`), studentPin);
+}
+
+export async function claimStudentAccess(boardId, studentPin) {
+  validateStudentPin(studentPin);
+  const user = await ensureSignedIn();
+  await set(ref(database, `studentKeyClaims/${boardId}/${user.uid}`), studentPin);
 }
 
 export async function claimTeacherAccess(boardId, teacherPin) {
@@ -93,6 +107,18 @@ export async function getTeacherKey(boardId) {
   await ensureSignedIn();
   const snapshot = await get(ref(database, `teacherKeys/${boardId}`));
   return snapshot.val();
+}
+
+export async function getStudentKey(boardId) {
+  await ensureSignedIn();
+  const snapshot = await get(ref(database, `studentKeys/${boardId}`));
+  return snapshot.val();
+}
+
+export async function setStudentKey(boardId, studentPin) {
+  validateStudentPin(studentPin);
+  await ensureSignedIn();
+  await set(ref(database, `studentKeys/${boardId}`), studentPin);
 }
 
 export async function subscribeToBoardCatalog(onBoards, onError) {
@@ -131,6 +157,8 @@ export async function deleteBoard(boardId) {
     [`boardCatalog/${boardId}`]: null,
     [`teacherKeys/${boardId}`]: null,
     [`teacherKeyClaims/${boardId}`]: null,
+    [`studentKeys/${boardId}`]: null,
+    [`studentKeyClaims/${boardId}`]: null,
   });
 }
 

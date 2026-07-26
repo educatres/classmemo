@@ -29,6 +29,17 @@
         </div>
       </header>
 
+      <section id="student-access-panel" class="student-access-panel hidden" aria-live="polite">
+        <form id="student-login-form" class="teacher-login-form">
+          <label>
+            <span>學生三位數登入密鑰</span>
+            <input id="student-login-pin" type="password" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{3}" minlength="3" maxlength="3" required />
+          </label>
+          <button class="primary-btn" type="submit">進入白板</button>
+          <p id="student-login-status" class="status-line"></p>
+        </form>
+      </section>
+
       <section id="teacher-panel" class="teacher-panel hidden" aria-live="polite">
         <div class="teacher-panel-heading">
           <div class="teacher-workspace-row">
@@ -54,6 +65,7 @@
             <button class="ghost-btn" id="toggle-teacher-key" type="button" aria-pressed="false">顯示</button>
             <button class="ghost-btn" id="copy-teacher-key" type="button">複製</button>
           </div>
+          <div class="teacher-key-display">學生密鑰：<b id="student-key-value">讀取中…</b></div>
           <button class="ghost-btn" id="import-board" type="button">匯入白板 JSON</button>
           <input id="import-board-file" type="file" accept="application/json,.json" hidden />
           <button class="ghost-btn" id="show-board-qr" type="button">顯示連結 QR Code</button>
@@ -85,6 +97,7 @@
         <button id="close-board-qr" class="qr-modal-close" type="button" aria-label="關閉 QR Code">×</button>
         <h2 id="board-qr-title">分享白板連結</h2>
         <div id="teacher-qr-code" class="qr-code" aria-label="白板 QR Code"></div>
+        <p class="qr-student-key">學生登入密鑰：<b id="teacher-qr-student-key">讀取中…</b></p>
         <a id="teacher-qr-url" class="qr-url" href="#" target="_blank" rel="noopener"></a>
       </div>
     </section>

@@ -1,6 +1,7 @@
 import { buildBoardUrl, buildConfigFromParams, generateId } from './config.js';
 import {
   BOARD_LIFETIME_MS,
+  claimStudentAccess,
   claimTeacherAccess,
   clearBoardNotes,
   deleteBoard,
@@ -8,10 +9,12 @@ import {
   fetchNotes,
   getBoardData,
   getBoardSettings,
+  getStudentKey,
   getTeacherKey,
   isCurrentUserBoardTeacher,
   replaceBoardNotes,
   saveNote,
+  setStudentKey,
   setBoardFrozen,
   subscribeToBoardSettings,
   subscribeToNotes,
@@ -44,6 +47,10 @@ const clearBoardButton = document.querySelector('#clear-board');
 const syncStatus = document.querySelector('#sync-status');
 const noteCount = document.querySelector('#note-count');
 const studentEditStatus = document.querySelector('#student-edit-status');
+const studentAccessPanel = document.querySelector('#student-access-panel');
+const studentLoginForm = document.querySelector('#student-login-form');
+const studentLoginPin = document.querySelector('#student-login-pin');
+const studentLoginStatus = document.querySelector('#student-login-status');
 const teacherLoginToggle = document.querySelector('#teacher-login-toggle');
 const teacherPanel = document.querySelector('#teacher-panel');
 const teacherLoginForm = document.querySelector('#teacher-login-form');
@@ -52,6 +59,7 @@ const teacherLoginStatus = document.querySelector('#teacher-login-status');
 const teacherActions = document.querySelector('#teacher-actions');
 const teacherStatus = document.querySelector('#teacher-status');
 const teacherKeyValue = document.querySelector('#teacher-key-value');
+const studentKeyValue = document.querySelector('#student-key-value');
 const toggleTeacherKeyButton = document.querySelector('#toggle-teacher-key');
 const copyTeacherKeyButton = document.querySelector('#copy-teacher-key');
 const boardExpiry = document.querySelector('#board-expiry');
@@ -67,6 +75,7 @@ const boardQrModal = document.querySelector('#board-qr-modal');
 const closeBoardQrButton = document.querySelector('#close-board-qr');
 const teacherQrCode = document.querySelector('#teacher-qr-code');
 const teacherQrUrl = document.querySelector('#teacher-qr-url');
+const teacherQrStudentKey = document.querySelector('#teacher-qr-student-key');
 
 const parsed = buildConfigFromParams();
 const notes = new Map();
@@ -74,6 +83,7 @@ const editingNotes = new Set();
 let config;
 let unsubscribeFromNotes;
 let subscriptionStarted = false;
+let hasBoardAccess = false;
 let periodicSyncTimer;
 let isPolling = false;
 let maxZIndex = 1;
@@ -82,6 +92,7 @@ let isTeacher = false;
 let expiryTimer;
 let isExpiryCleanupRunning = false;
 let teacherKey = '';
+let studentBoardKey = '';
 let isTeacherKeyVisible = false;
 let teacherStatusTimer;
 
@@ -98,6 +109,7 @@ function boot() {
   enableUiVisibility(boardApp);
   addNoteButton.addEventListener('click', createNote);
   clearBoardButton.addEventListener('click', clearBoard);
+  studentLoginForm.addEventListener('submit', signInAsStudent);
   teacherLoginToggle.addEventListener('click', () => teacherPanel.classList.toggle('hidden'));
   teacherLoginForm.addEventListener('submit', signInAsTeacher);
   freezeBoard.addEventListener('change', updateFrozenState);
@@ -117,7 +129,7 @@ function boot() {
   window.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') closeBoardQrModal();
   });
-  syncFromFirebase();
+  initializeBoardAccess();
   subscribeToBoardSettings(config.boardId, applyBoardSettings, handleBoardSettingsError);
   periodicSyncTimer = window.setInterval(refreshNotesFromFirebase, SYNC_INTERVAL_MS);
   expiryTimer = window.setInterval(updateBoardExpiry, 60000);
@@ -126,6 +138,45 @@ function boot() {
     window.clearInterval(periodicSyncTimer);
     window.clearInterval(expiryTimer);
   });
+}
+
+async function initializeBoardAccess() {
+  if (!config.studentKey) {
+    syncFromFirebase();
+    return;
+  }
+
+  studentLoginStatus.textContent = '正在使用連結中的學生密鑰登入…';
+  try {
+    await claimStudentAccess(config.boardId, config.studentKey);
+    studentAccessPanel.classList.add('hidden');
+    studentLoginStatus.textContent = '';
+    syncFromFirebase();
+  } catch (error) {
+    console.error(error);
+    showStudentLogin('連結中的學生密鑰無效，請輸入正確的三位數密鑰。');
+  }
+}
+
+async function signInAsStudent(event) {
+  event.preventDefault();
+  studentLoginStatus.textContent = '正在登入白板…';
+
+  try {
+    await claimStudentAccess(config.boardId, studentLoginPin.value);
+    studentLoginPin.value = '';
+    studentAccessPanel.classList.add('hidden');
+    studentLoginStatus.textContent = '';
+    syncFromFirebase();
+  } catch (error) {
+    console.error(error);
+    studentLoginStatus.textContent = '登入失敗，請確認三位數學生密鑰。';
+  }
+}
+
+function showStudentLogin(message) {
+  studentAccessPanel.classList.remove('hidden');
+  studentLoginStatus.textContent = message;
 }
 
 async function applyBoardSettings(settings) {
@@ -145,6 +196,12 @@ async function applyBoardSettings(settings) {
     teacherLoginStatus.textContent = '';
     teacherStatus.textContent = '';
     teacherKey = await getTeacherKey(config.boardId) || '';
+    studentBoardKey = await getStudentKey(config.boardId) || '';
+    if (!studentBoardKey) {
+      studentBoardKey = generateStudentKey();
+      await setStudentKey(config.boardId, studentBoardKey);
+    }
+    studentKeyValue.textContent = studentBoardKey;
     isTeacherKeyVisible = false;
     renderTeacherKey();
   }
@@ -167,6 +224,8 @@ async function signInAsTeacher(event) {
     teacherLoginPin.value = '';
     boardSettings = await getBoardSettings(config.boardId);
     await applyBoardSettings(boardSettings);
+    studentAccessPanel.classList.add('hidden');
+    syncFromFirebase();
   } catch (error) {
     console.error(error);
     teacherLoginStatus.textContent = '登入失敗，請確認六位數密鑰。';
@@ -203,6 +262,11 @@ function toggleTeacherKeyVisibility() {
   if (!teacherKey) return;
   isTeacherKeyVisible = !isTeacherKeyVisible;
   renderTeacherKey();
+}
+
+function generateStudentKey() {
+  const random = crypto.getRandomValues(new Uint32Array(1))[0] % 1000;
+  return String(random).padStart(3, '0');
 }
 
 async function copyTeacherKey() {
@@ -389,15 +453,24 @@ async function importBoardData() {
   }
 }
 
-function openBoardQrModal() {
+async function openBoardQrModal() {
   if (!isTeacher) return;
 
-  const boardUrl = buildBoardUrl({ board_id: config.boardId });
-  teacherQrUrl.href = boardUrl;
-  teacherQrUrl.textContent = boardUrl;
-  renderQr(teacherQrCode, boardUrl);
-  boardQrModal.classList.remove('hidden');
-  closeBoardQrButton.focus();
+  try {
+    if (!studentBoardKey) studentBoardKey = await getStudentKey(config.boardId) || '';
+    if (!studentBoardKey) throw new Error('找不到學生密鑰');
+
+    const boardUrl = buildBoardUrl({ board_id: config.boardId, student_key: studentBoardKey });
+    teacherQrStudentKey.textContent = studentBoardKey;
+    teacherQrUrl.href = boardUrl;
+    teacherQrUrl.textContent = boardUrl;
+    renderQr(teacherQrCode, boardUrl);
+    boardQrModal.classList.remove('hidden');
+    closeBoardQrButton.focus();
+  } catch (error) {
+    console.error(error);
+    teacherStatus.textContent = '無法產生學生 QR Code，請稍後再試。';
+  }
 }
 
 function closeBoardQrModal() {
@@ -432,11 +505,15 @@ async function syncFromFirebase(options = {}) {
     unsubscribeFromNotes = await subscribeToNotes(
       config.boardId,
       (remoteNotes) => {
+        hasBoardAccess = true;
         mergeRemoteNotes(remoteNotes);
         setSyncStatus(`即時同步中 · ${new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
       },
       (error) => {
         console.error(error);
+        subscriptionStarted = false;
+        hasBoardAccess = false;
+        showStudentLogin('請輸入三位數學生密鑰以進入白板。');
         setSyncStatus('無法讀取 Firebase 資料，請稍後再試。', true);
       },
     );
@@ -448,6 +525,7 @@ async function syncFromFirebase(options = {}) {
 }
 
 async function refreshNotesFromFirebase(options = {}) {
+  if (!hasBoardAccess && !isTeacher) return;
   if (isPolling) return;
   isPolling = true;
 

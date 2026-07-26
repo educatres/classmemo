@@ -522,6 +522,16 @@ code {
   background: rgba(255, 253, 242, 0.92);
 }
 
+.student-access-panel {
+  padding: 14px clamp(16px, 4vw, 34px);
+  border-bottom: 1px solid rgba(107, 91, 59, 0.16);
+  background: rgba(255, 253, 242, 0.92);
+}
+
+.student-access-panel .status-line {
+  margin: 0;
+}
+
 .teacher-panel-heading {
   flex: 1 1 100%;
 }
@@ -687,6 +697,16 @@ code {
   color: var(--accent-strong);
   font-size: 0.85rem;
   line-height: 1.55;
+}
+
+.qr-student-key {
+  margin: 0;
+  color: var(--accent-strong);
+}
+
+.qr-student-key b {
+  margin-left: 6px;
+  letter-spacing: 0.12em;
 }
 
 .floating-add-note {

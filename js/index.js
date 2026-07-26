@@ -16,6 +16,7 @@ const boardDirectoryToggle = document.querySelector('#board-directory-toggle');
 const boardDirectoryPanel = document.querySelector('#board-directory-panel');
 const boardDirectoryList = document.querySelector('#board-directory-list');
 const teacherKey = document.querySelector('#teacher-key');
+const studentKey = document.querySelector('#student-key');
 
 let boardId = generateId('board');
 let latestBoards = [];
@@ -23,15 +24,17 @@ const attemptedExpiredBoardCleanup = new Set();
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const boardUrl = buildBoardUrl({ board_id: boardId });
+  const generatedStudentKey = generateStudentKey();
+  const boardUrl = buildBoardUrl({ board_id: boardId, student_key: generatedStudentKey });
   const generatedTeacherKey = generateTeacherKey();
 
   setupStatus.textContent = '正在建立白板…';
 
   try {
-    await createBoard(boardId, generatedTeacherKey);
+    await createBoard(boardId, generatedTeacherKey, generatedStudentKey);
     studentLink.value = boardUrl;
     teacherKey.value = generatedTeacherKey;
+    studentKey.value = generatedStudentKey;
     openBoard.href = boardUrl;
     renderQr(qrCode, boardUrl);
     resultPanel.classList.remove('hidden');
@@ -131,6 +134,11 @@ function renderBoardDirectory(boards) {
 function generateTeacherKey() {
   const random = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000;
   return String(random).padStart(6, '0');
+}
+
+function generateStudentKey() {
+  const random = crypto.getRandomValues(new Uint32Array(1))[0] % 1000;
+  return String(random).padStart(3, '0');
 }
 
 function formatRemainingTime(milliseconds) {
