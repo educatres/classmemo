@@ -30,6 +30,11 @@
       </header>
 
       <section id="teacher-panel" class="teacher-panel hidden" aria-live="polite">
+        <div class="teacher-panel-heading">
+          <p class="eyebrow">Teacher workspace</p>
+          <h2>老師密鑰登入的工作區</h2>
+          <p id="board-expiry" class="status-line">正在計算白板有效時間…</p>
+        </div>
         <form id="teacher-login-form" class="teacher-login-form">
           <label>
             <span>老師六位數登入密鑰</span>
@@ -44,6 +49,8 @@
           </label>
           <span class="teacher-key-display">老師密鑰：<b id="teacher-key-value">讀取中…</b></span>
           <span id="teacher-status" class="status-line">老師控制台已登入。</span>
+          <button class="ghost-btn" id="import-board" type="button">匯入白板 JSON</button>
+          <input id="import-board-file" type="file" accept="application/json,.json" hidden />
           <button class="ghost-btn" id="download-board" type="button">下載本白板資料 JSON</button>
           <button class="ghost-btn danger-btn" id="delete-board" type="button">刪除本白板</button>
         </div>

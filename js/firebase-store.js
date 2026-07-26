@@ -17,6 +17,8 @@ const auth = getAuth(app);
 const database = getDatabase(app);
 let anonymousSignInPromise;
 
+export const BOARD_LIFETIME_MS = 3 * 24 * 60 * 60 * 1000;
+
 function validateTeacherPin(pin) {
   if (!/^\d{6}$/.test(pin)) {
     throw new Error('老師登入密鑰必須是六位數字。');
@@ -130,6 +132,17 @@ export async function deleteBoard(boardId) {
     [`teacherKeys/${boardId}`]: null,
     [`teacherKeyClaims/${boardId}`]: null,
   });
+}
+
+export async function replaceBoardNotes(boardId, notes) {
+  await ensureSignedIn();
+  const payload = Object.fromEntries(
+    notes.map((note) => [note.note_id, {
+      ...note,
+      updated_at: serverTimestamp(),
+    }]),
+  );
+  await set(ref(database, `boards/${boardId}/notes`), payload);
 }
 
 export async function getBoardData(boardId) {

@@ -1,5 +1,6 @@
 import { buildConfigFromParams, generateId } from './config.js';
 import {
+  BOARD_LIFETIME_MS,
   claimTeacherAccess,
   clearBoardNotes,
   deleteBoard,
@@ -9,6 +10,7 @@ import {
   getBoardSettings,
   getTeacherKey,
   isCurrentUserBoardTeacher,
+  replaceBoardNotes,
   saveNote,
   setBoardFrozen,
   subscribeToBoardSettings,
@@ -39,7 +41,10 @@ const teacherLoginStatus = document.querySelector('#teacher-login-status');
 const teacherActions = document.querySelector('#teacher-actions');
 const teacherStatus = document.querySelector('#teacher-status');
 const teacherKeyValue = document.querySelector('#teacher-key-value');
+const boardExpiry = document.querySelector('#board-expiry');
 const freezeBoard = document.querySelector('#freeze-board');
+const importBoardButton = document.querySelector('#import-board');
+const importBoardFile = document.querySelector('#import-board-file');
 const downloadBoardButton = document.querySelector('#download-board');
 const deleteBoardButton = document.querySelector('#delete-board');
 
@@ -54,6 +59,8 @@ let isPolling = false;
 let maxZIndex = 1;
 let boardSettings = null;
 let isTeacher = false;
+let expiryTimer;
+let isExpiryCleanupRunning = false;
 
 if (!parsed.ok) {
   configError.classList.remove('hidden');
@@ -72,14 +79,18 @@ function boot() {
   teacherLoginToggle.addEventListener('click', () => teacherPanel.classList.toggle('hidden'));
   teacherLoginForm.addEventListener('submit', signInAsTeacher);
   freezeBoard.addEventListener('change', updateFrozenState);
+  importBoardButton.addEventListener('click', () => importBoardFile.click());
+  importBoardFile.addEventListener('change', importBoardData);
   downloadBoardButton.addEventListener('click', downloadBoardData);
   deleteBoardButton.addEventListener('click', removeBoard);
   syncFromFirebase();
   subscribeToBoardSettings(config.boardId, applyBoardSettings, handleBoardSettingsError);
   periodicSyncTimer = window.setInterval(refreshNotesFromFirebase, SYNC_INTERVAL_MS);
+  expiryTimer = window.setInterval(updateBoardExpiry, 60000);
   window.addEventListener('beforeunload', () => {
     unsubscribeFromNotes?.();
     window.clearInterval(periodicSyncTimer);
+    window.clearInterval(expiryTimer);
   });
 }
 
@@ -99,6 +110,7 @@ async function applyBoardSettings(settings) {
     teacherKeyValue.textContent = await getTeacherKey(config.boardId) || '讀取中…';
   }
 
+  updateBoardExpiry();
   applyEditingState();
 }
 
@@ -154,6 +166,26 @@ async function downloadBoardData() {
   } catch (error) {
     console.error(error);
     teacherStatus.textContent = '資料下載失敗，請稍後再試。';
+  }
+}
+
+async function importBoardData() {
+  if (!isTeacher) return;
+  const [file] = importBoardFile.files;
+  if (!file) return;
+
+  try {
+    const source = JSON.parse(await file.text());
+    const notesToRestore = normalizeImportedNotes(source.notes);
+    if (!window.confirm(`確定要以匯入資料取代目前白板的 ${notesToRestore.length} 張便條貼嗎？`)) return;
+
+    await replaceBoardNotes(config.boardId, notesToRestore);
+    teacherStatus.textContent = `已回復 ${notesToRestore.length} 張便條貼。`;
+  } catch (error) {
+    console.error(error);
+    teacherStatus.textContent = '匯入失敗，請確認這是本白板匯出的 JSON 檔案。';
+  } finally {
+    importBoardFile.value = '';
   }
 }
 
@@ -318,7 +350,66 @@ function createNoteElement(noteId) {
 }
 
 function canEditBoard() {
-  return Boolean(boardSettings?.created_at) && (!boardSettings.frozen || isTeacher);
+  return Boolean(boardSettings?.created_at) && !isBoardExpired() && (!boardSettings.frozen || isTeacher);
+}
+
+function isBoardExpired() {
+  return Number(boardSettings?.created_at) + BOARD_LIFETIME_MS <= Date.now();
+}
+
+function updateBoardExpiry() {
+  if (!boardSettings?.created_at) return;
+
+  const remaining = Number(boardSettings.created_at) + BOARD_LIFETIME_MS - Date.now();
+  if (remaining <= 0) {
+    if (isExpiryCleanupRunning) return;
+
+    isExpiryCleanupRunning = true;
+    boardExpiry.textContent = '白板已到期，正在自動清除資料…';
+    applyEditingState();
+    deleteBoard(config.boardId)
+      .then(() => window.location.assign('./index.html'))
+      .catch((error) => {
+        console.error(error);
+        isExpiryCleanupRunning = false;
+        boardExpiry.textContent = '白板已到期，清除作業將在下次連線時重試。';
+      });
+    return;
+  }
+
+  boardExpiry.textContent = `距離失效：${formatRemainingTime(remaining)}`;
+}
+
+function formatRemainingTime(milliseconds) {
+  const totalMinutes = Math.ceil(milliseconds / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  return `${days} 天 ${hours} 小時 ${minutes} 分`;
+}
+
+function normalizeImportedNotes(rawNotes) {
+  if (!rawNotes || typeof rawNotes !== 'object') {
+    throw new Error('找不到便條貼資料');
+  }
+
+  const values = Array.isArray(rawNotes) ? rawNotes : Object.values(rawNotes);
+  return values.map((note) => {
+    if (!note || typeof note.note_id !== 'string' || !note.note_id) {
+      throw new Error('便條貼格式不正確');
+    }
+
+    return {
+      note_id: note.note_id,
+      text: String(note.text || '').slice(0, 1000),
+      x: Math.round(Number(note.x) || 0),
+      y: Math.round(Number(note.y) || 0),
+      width: clamp(Math.round(Number(note.width) || DEFAULT_NOTE.width), 120, 600),
+      height: clamp(Math.round(Number(note.height) || DEFAULT_NOTE.height), 80, 400),
+      color: COLORS.includes(note.color) ? note.color : 'yellow',
+      z_index: Math.max(1, Math.round(Number(note.z_index) || 1)),
+    };
+  });
 }
 
 function applyEditingState() {

@@ -1,5 +1,5 @@
 import { buildBoardUrl, generateId } from './config.js';
-import { createBoard, subscribeToBoardCatalog } from './firebase-store.js';
+import { BOARD_LIFETIME_MS, createBoard, deleteBoard, subscribeToBoardCatalog } from './firebase-store.js';
 import { renderQr } from './qr.js';
 
 const form = document.querySelector('#setup-form');
@@ -16,6 +16,8 @@ const boardListStatus = document.querySelector('#board-list-status');
 const teacherKey = document.querySelector('#teacher-key');
 
 let boardId = generateId('board');
+let latestBoards = [];
+const attemptedExpiredBoardCleanup = new Set();
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -58,9 +60,14 @@ copyButton.addEventListener('click', async () => {
   }
 });
 
-subscribeToBoardCatalog(renderBoardList, () => {
+subscribeToBoardCatalog((boards) => {
+  latestBoards = boards;
+  renderBoardList(boards);
+  cleanupExpiredBoards(boards);
+}, () => {
   boardListStatus.textContent = '目前無法讀取白板清單，請稍後重新整理。';
 });
+window.setInterval(() => renderBoardList(latestBoards), 60000);
 
 function renderBoardList(boards) {
   boardList.replaceChildren();
@@ -81,7 +88,10 @@ function renderBoardList(boards) {
     const title = document.createElement('strong');
     const meta = document.createElement('span');
     title.textContent = board.board_id;
-    meta.textContent = `建立時間：${formatUpdatedAt(board.created_at)}`;
+    const remaining = Number(board.created_at) + BOARD_LIFETIME_MS - Date.now();
+    meta.textContent = remaining > 0
+      ? `距離失效：${formatRemainingTime(remaining)}`
+      : '已到期，正在自動清除資料…';
     details.append(title, meta);
 
     const link = document.createElement('a');
@@ -94,15 +104,28 @@ function renderBoardList(boards) {
   }
 }
 
-function formatUpdatedAt(timestamp) {
-  if (!timestamp) return '剛建立';
-  return new Intl.DateTimeFormat('zh-TW', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(timestamp));
-}
-
 function generateTeacherKey() {
   const random = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000;
   return String(random).padStart(6, '0');
+}
+
+function formatRemainingTime(milliseconds) {
+  const totalMinutes = Math.ceil(milliseconds / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  return `${days} 天 ${hours} 小時 ${minutes} 分`;
+}
+
+function cleanupExpiredBoards(boards) {
+  for (const board of boards) {
+    const isExpired = Number(board.created_at) + BOARD_LIFETIME_MS <= Date.now();
+    if (!isExpired || attemptedExpiredBoardCleanup.has(board.board_id)) continue;
+
+    attemptedExpiredBoardCleanup.add(board.board_id);
+    deleteBoard(board.board_id).catch((error) => {
+      console.error(error);
+      attemptedExpiredBoardCleanup.delete(board.board_id);
+    });
+  }
 }
