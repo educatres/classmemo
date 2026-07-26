@@ -4,6 +4,8 @@
 
 資料儲存在 Firebase Realtime Database；前端使用 Firebase Anonymous Authentication 連線，因此不再需要 Google Form 或 Google Sheet。
 
+本專案是以 Google Form／Sheet 架構的「ClassBoard 班級共創牆」為基礎所開發的改良版本。原專案在班級人數較多、學生同時送出內容時，可能因資料處理速度不足而出現同步延遲，因此本版本將後台的中繼資料庫改為 Firebase，以提升即時同步的效率與穩定性。不過，Firebase 的後台設定相對複雜，對沒有程式背景的老師而言，初次建置可能需要較多設定步驟。
+
 ## 功能
 
 - 建立可分享的白板連結與 QR Code。
