@@ -458,6 +458,73 @@ code {
   align-items: center;
 }
 
+.teacher-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  align-items: center;
+  padding: 14px clamp(16px, 4vw, 34px);
+  border-bottom: 1px solid rgba(107, 91, 59, 0.16);
+  background: rgba(255, 253, 242, 0.92);
+}
+
+.teacher-login-form,
+.teacher-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+
+.teacher-login-form label {
+  min-width: min(100%, 250px);
+  margin: 0;
+}
+
+.teacher-login-form .primary-btn {
+  min-height: 48px;
+}
+
+.teacher-actions .status-line {
+  margin-right: auto;
+}
+
+.freeze-control {
+  display: inline-flex;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fffdf7;
+  color: var(--accent-strong);
+}
+
+.freeze-control input {
+  width: 18px;
+  min-height: auto;
+  accent-color: var(--accent);
+}
+
+.teacher-key-display {
+  display: inline-flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid rgba(36, 107, 85, 0.18);
+  border-radius: 999px;
+  background: rgba(216, 240, 220, 0.52);
+  color: var(--accent-strong);
+}
+
+.teacher-key-display b {
+  margin-left: 6px;
+  letter-spacing: 0.12em;
+}
+
 .sync-pill {
   display: inline-flex;
   min-height: 38px;
@@ -499,6 +566,12 @@ code {
 
 .floating-add-note:hover {
   background: var(--accent-strong);
+}
+
+.floating-add-note:disabled {
+  cursor: not-allowed;
+  background: #8b968f;
+  box-shadow: none;
 }
 
 .show-ui-btn {
@@ -594,6 +667,14 @@ body.ui-hidden .board {
   box-shadow: 0 16px 26px rgba(52, 43, 28, 0.2);
   touch-action: none;
   user-select: none;
+}
+
+.note.is-locked {
+  cursor: not-allowed;
+}
+
+.note.is-locked .note-toolbar {
+  opacity: 0.58;
 }
 
 .note::after {

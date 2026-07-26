@@ -1,9 +1,17 @@
 import { buildConfigFromParams, generateId } from './config.js';
 import {
+  claimTeacherAccess,
   clearBoardNotes,
+  deleteBoard,
   deleteNoteFromBoard,
   fetchNotes,
+  getBoardData,
+  getBoardSettings,
+  getTeacherKey,
+  isCurrentUserBoardTeacher,
   saveNote,
+  setBoardFrozen,
+  subscribeToBoardSettings,
   subscribeToNotes,
 } from './firebase-store.js';
 import { enableBoardPan } from './board-pan.js';
@@ -23,6 +31,17 @@ const refreshButton = document.querySelector('#refresh-board');
 const clearBoardButton = document.querySelector('#clear-board');
 const syncStatus = document.querySelector('#sync-status');
 const noteCount = document.querySelector('#note-count');
+const teacherLoginToggle = document.querySelector('#teacher-login-toggle');
+const teacherPanel = document.querySelector('#teacher-panel');
+const teacherLoginForm = document.querySelector('#teacher-login-form');
+const teacherLoginPin = document.querySelector('#teacher-login-pin');
+const teacherLoginStatus = document.querySelector('#teacher-login-status');
+const teacherActions = document.querySelector('#teacher-actions');
+const teacherStatus = document.querySelector('#teacher-status');
+const teacherKeyValue = document.querySelector('#teacher-key-value');
+const freezeBoard = document.querySelector('#freeze-board');
+const downloadBoardButton = document.querySelector('#download-board');
+const deleteBoardButton = document.querySelector('#delete-board');
 
 const parsed = buildConfigFromParams();
 const notes = new Map();
@@ -33,6 +52,8 @@ let subscriptionStarted = false;
 let periodicSyncTimer;
 let isPolling = false;
 let maxZIndex = 1;
+let boardSettings = null;
+let isTeacher = false;
 
 if (!parsed.ok) {
   configError.classList.remove('hidden');
@@ -48,12 +69,105 @@ function boot() {
   addNoteButton.addEventListener('click', createNote);
   refreshButton.addEventListener('click', () => refreshNotesFromFirebase({ manual: true }));
   clearBoardButton.addEventListener('click', clearBoard);
+  teacherLoginToggle.addEventListener('click', () => teacherPanel.classList.toggle('hidden'));
+  teacherLoginForm.addEventListener('submit', signInAsTeacher);
+  freezeBoard.addEventListener('change', updateFrozenState);
+  downloadBoardButton.addEventListener('click', downloadBoardData);
+  deleteBoardButton.addEventListener('click', removeBoard);
   syncFromFirebase();
+  subscribeToBoardSettings(config.boardId, applyBoardSettings, handleBoardSettingsError);
   periodicSyncTimer = window.setInterval(refreshNotesFromFirebase, SYNC_INTERVAL_MS);
   window.addEventListener('beforeunload', () => {
     unsubscribeFromNotes?.();
     window.clearInterval(periodicSyncTimer);
   });
+}
+
+async function applyBoardSettings(settings) {
+  boardSettings = settings;
+  isTeacher = await isCurrentUserBoardTeacher(config.boardId);
+  freezeBoard.checked = Boolean(settings?.frozen);
+  teacherActions.classList.toggle('hidden', !isTeacher);
+  teacherLoginForm.classList.toggle('hidden', isTeacher);
+  clearBoardButton.classList.toggle('hidden', !isTeacher);
+
+  if (!settings?.created_at) {
+    teacherLoginStatus.textContent = '這張白板尚未設定老師密鑰。';
+  } else if (isTeacher) {
+    teacherLoginStatus.textContent = '';
+    teacherStatus.textContent = settings.frozen ? '學生編輯已凍結。' : '學生目前可以編輯。';
+    teacherKeyValue.textContent = await getTeacherKey(config.boardId) || '讀取中…';
+  }
+
+  applyEditingState();
+}
+
+function handleBoardSettingsError(error) {
+  console.error(error);
+  teacherLoginStatus.textContent = '無法讀取老師控制設定。';
+}
+
+async function signInAsTeacher(event) {
+  event.preventDefault();
+  teacherLoginStatus.textContent = '正在登入老師控制台…';
+
+  try {
+    await claimTeacherAccess(config.boardId, teacherLoginPin.value);
+    teacherLoginPin.value = '';
+    boardSettings = await getBoardSettings(config.boardId);
+    await applyBoardSettings(boardSettings);
+  } catch (error) {
+    console.error(error);
+    teacherLoginStatus.textContent = '登入失敗，請確認六位數密鑰。';
+  }
+}
+
+async function updateFrozenState() {
+  if (!isTeacher) return;
+
+  freezeBoard.disabled = true;
+  try {
+    await setBoardFrozen(config.boardId, freezeBoard.checked);
+    teacherStatus.textContent = freezeBoard.checked ? '學生編輯已凍結。' : '學生目前可以編輯。';
+  } catch (error) {
+    console.error(error);
+    freezeBoard.checked = Boolean(boardSettings?.frozen);
+    teacherStatus.textContent = '無法更新凍結狀態，請稍後再試。';
+  } finally {
+    freezeBoard.disabled = false;
+  }
+}
+
+async function downloadBoardData() {
+  if (!isTeacher) return;
+
+  try {
+    const data = await getBoardData(config.boardId);
+    const file = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${config.boardId}-data.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    teacherStatus.textContent = '已下載本白板資料 JSON。';
+  } catch (error) {
+    console.error(error);
+    teacherStatus.textContent = '資料下載失敗，請稍後再試。';
+  }
+}
+
+async function removeBoard() {
+  if (!isTeacher) return;
+  if (!window.confirm('確定要永久刪除這張白板與所有便條貼嗎？此操作無法復原。')) return;
+
+  try {
+    await deleteBoard(config.boardId);
+    window.location.assign('./index.html');
+  } catch (error) {
+    console.error(error);
+    teacherStatus.textContent = '刪除白板失敗，請稍後再試。';
+  }
 }
 
 async function syncFromFirebase(options = {}) {
@@ -121,9 +235,11 @@ function mergeRemoteNotes(remoteNotes) {
   }
 
   updateBoardMeta();
+  applyEditingState();
 }
 
 async function createNote() {
+  if (!canEditBoard()) return;
   const rect = board.getBoundingClientRect();
   const note = {
     note_id: generateId('note'),
@@ -201,6 +317,28 @@ function createNoteElement(noteId) {
   return element;
 }
 
+function canEditBoard() {
+  return Boolean(boardSettings?.created_at) && (!boardSettings.frozen || isTeacher);
+}
+
+function applyEditingState() {
+  const editable = canEditBoard();
+  addNoteButton.disabled = !editable;
+  addNoteButton.title = editable ? '' : '學生編輯目前已凍結，或此白板尚未設定老師密鑰。';
+
+  for (const note of notes.values()) {
+    note.element.classList.toggle('is-locked', !editable);
+    note.element.querySelector('.note-color').disabled = !editable;
+    note.element.querySelector('.edit-note').disabled = !editable;
+    note.element.querySelector('.delete-note').disabled = !editable;
+    note.element.querySelector('.note-editor').disabled = !editable;
+    if (!editable) {
+      editingNotes.delete(note.note_id);
+      note.element.classList.remove('is-editing');
+    }
+  }
+}
+
 function renderNote(note) {
   const element = note.element;
   const text = element.querySelector('.note-text');
@@ -219,6 +357,7 @@ function renderNote(note) {
 }
 
 function startEditing(noteId) {
+  if (!canEditBoard()) return;
   const note = notes.get(noteId);
   if (!note) return;
 
@@ -233,6 +372,7 @@ function startEditing(noteId) {
 }
 
 async function finishEditing(noteId) {
+  if (!canEditBoard()) return;
   if (!editingNotes.has(noteId)) return;
   const note = notes.get(noteId);
   if (!note) return;
@@ -251,6 +391,7 @@ async function finishEditing(noteId) {
 }
 
 function cancelEditing(noteId) {
+  if (!canEditBoard()) return;
   const note = notes.get(noteId);
   if (!note) return;
   editingNotes.delete(noteId);
@@ -259,6 +400,7 @@ function cancelEditing(noteId) {
 }
 
 async function deleteNote(noteId) {
+  if (!canEditBoard()) return;
   const note = notes.get(noteId);
   if (!note) return;
   if (!window.confirm('確定要刪除這張便條貼嗎？')) return;
@@ -267,6 +409,7 @@ async function deleteNote(noteId) {
 }
 
 async function clearBoard() {
+  if (!isTeacher) return;
   const visibleNotes = Array.from(notes.values());
   if (visibleNotes.length === 0) {
     setSyncStatus('目前沒有可清除的便條貼。');
@@ -286,6 +429,7 @@ async function clearBoard() {
 }
 
 function beginDrag(event, noteId) {
+  if (!canEditBoard()) return;
   const note = notes.get(noteId);
   if (!note) return;
 
@@ -322,6 +466,7 @@ function beginDrag(event, noteId) {
 }
 
 function beginResize(event, noteId) {
+  if (!canEditBoard()) return;
   const note = notes.get(noteId);
   if (!note) return;
 

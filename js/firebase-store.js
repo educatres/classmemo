@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import {
   getDatabase,
   get,
@@ -8,38 +8,40 @@ import {
   remove,
   serverTimestamp,
   set,
+  update,
 } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js';
 import { firebaseConfig } from './firebase-config.js';
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const database = getDatabase(app);
+let anonymousSignInPromise;
+
+function validateTeacherPin(pin) {
+  if (!/^\d{6}$/.test(pin)) {
+    throw new Error('老師登入密鑰必須是六位數字。');
+  }
+}
 
 export async function ensureSignedIn() {
   if (auth.currentUser) return auth.currentUser;
 
-  const signedIn = new Promise((resolve, reject) => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (user) => {
-        unsubscribe();
-        if (user) resolve(user);
-      },
-      reject,
-    );
-  });
-
-  try {
-    await signInAnonymously(auth);
-    return await signedIn;
-  } catch (error) {
-    throw new Error('無法完成匿名登入，請確認 Firebase Authentication 已啟用「匿名」登入方式。', { cause: error });
+  if (!anonymousSignInPromise) {
+    anonymousSignInPromise = signInAnonymously(auth)
+      .then((credential) => credential.user)
+      .catch((error) => {
+        throw new Error('無法完成匿名登入，請確認 Firebase Authentication 已啟用「匿名」登入方式。', { cause: error });
+      })
+      .finally(() => {
+        anonymousSignInPromise = undefined;
+      });
   }
+
+  return anonymousSignInPromise;
 }
 
 export async function subscribeToNotes(boardId, onNotes, onError) {
   await ensureSignedIn();
-  await registerBoard(boardId);
   return onValue(
     ref(database, `boards/${boardId}/notes`),
     (snapshot) => {
@@ -50,12 +52,45 @@ export async function subscribeToNotes(boardId, onNotes, onError) {
   );
 }
 
-export async function registerBoard(boardId) {
-  await ensureSignedIn();
+export async function createBoard(boardId, teacherPin) {
+  validateTeacherPin(teacherPin);
+  const teacherUid = (await ensureSignedIn()).uid;
+
+  await set(ref(database, `boards/${boardId}`), {
+    settings: {
+      frozen: false,
+      created_at: serverTimestamp(),
+    },
+    admins: {
+      [teacherUid]: true,
+    },
+  });
+
   await set(ref(database, `boardCatalog/${boardId}`), {
     board_id: String(boardId),
-    updated_at: serverTimestamp(),
+    created_at: serverTimestamp(),
   });
+  await set(ref(database, `teacherKeys/${boardId}`), teacherPin);
+}
+
+export async function claimTeacherAccess(boardId, teacherPin) {
+  validateTeacherPin(teacherPin);
+  const user = await ensureSignedIn();
+
+  await set(ref(database, `teacherKeyClaims/${boardId}/${user.uid}`), teacherPin);
+  await set(ref(database, `boards/${boardId}/admins/${user.uid}`), true);
+}
+
+export async function isCurrentUserBoardTeacher(boardId) {
+  const user = await ensureSignedIn();
+  const snapshot = await get(ref(database, `boards/${boardId}/admins/${user.uid}`));
+  return snapshot.val() === true;
+}
+
+export async function getTeacherKey(boardId) {
+  await ensureSignedIn();
+  const snapshot = await get(ref(database, `teacherKeys/${boardId}`));
+  return snapshot.val();
 }
 
 export async function subscribeToBoardCatalog(onBoards, onError) {
@@ -64,11 +99,43 @@ export async function subscribeToBoardCatalog(onBoards, onError) {
     ref(database, 'boardCatalog'),
     (snapshot) => {
       const boards = Object.values(snapshot.val() || {});
-      boards.sort((first, second) => Number(second.updated_at) - Number(first.updated_at));
+      boards.sort((first, second) => Number(second.created_at) - Number(first.created_at));
       onBoards(boards);
     },
     onError,
   );
+}
+
+export async function subscribeToBoardSettings(boardId, onSettings, onError) {
+  await ensureSignedIn();
+  return onValue(ref(database, `boards/${boardId}/settings`), (snapshot) => onSettings(snapshot.val()), onError);
+}
+
+export async function getBoardSettings(boardId) {
+  await ensureSignedIn();
+  const snapshot = await get(ref(database, `boards/${boardId}/settings`));
+  return snapshot.val();
+}
+
+export async function setBoardFrozen(boardId, frozen) {
+  await ensureSignedIn();
+  await update(ref(database, `boards/${boardId}/settings`), { frozen: Boolean(frozen) });
+}
+
+export async function deleteBoard(boardId) {
+  await ensureSignedIn();
+  await update(ref(database), {
+    [`boards/${boardId}`]: null,
+    [`boardCatalog/${boardId}`]: null,
+    [`teacherKeys/${boardId}`]: null,
+    [`teacherKeyClaims/${boardId}`]: null,
+  });
+}
+
+export async function getBoardData(boardId) {
+  await ensureSignedIn();
+  const snapshot = await get(ref(database, `boards/${boardId}`));
+  return snapshot.val();
 }
 
 export async function fetchNotes(boardId) {
@@ -92,17 +159,14 @@ export async function saveNote(boardId, note) {
   };
 
   await set(ref(database, `boards/${boardId}/notes/${note.note_id}`), payload);
-  await registerBoard(boardId);
 }
 
 export async function deleteNoteFromBoard(boardId, noteId) {
   await ensureSignedIn();
   await remove(ref(database, `boards/${boardId}/notes/${noteId}`));
-  await registerBoard(boardId);
 }
 
 export async function clearBoardNotes(boardId) {
   await ensureSignedIn();
   await remove(ref(database, `boards/${boardId}/notes`));
-  await registerBoard(boardId);
 }

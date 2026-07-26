@@ -1,5 +1,5 @@
 import { buildBoardUrl, generateId } from './config.js';
-import { registerBoard, subscribeToBoardCatalog } from './firebase-store.js';
+import { createBoard, subscribeToBoardCatalog } from './firebase-store.js';
 import { renderQr } from './qr.js';
 
 const form = document.querySelector('#setup-form');
@@ -13,26 +13,29 @@ const resetBoardIdButton = document.querySelector('#reset-board-id');
 const qrCode = document.querySelector('#qr-code');
 const boardList = document.querySelector('#board-list');
 const boardListStatus = document.querySelector('#board-list-status');
+const teacherKey = document.querySelector('#teacher-key');
 
 let boardId = generateId('board');
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const boardUrl = buildBoardUrl({ board_id: boardId });
+  const generatedTeacherKey = generateTeacherKey();
 
-  studentLink.value = boardUrl;
-  openBoard.href = boardUrl;
-  renderQr(qrCode, boardUrl);
-  resultPanel.classList.remove('hidden');
   setupStatus.textContent = '正在建立白板…';
-  copyStatus.textContent = '白板連結已產生。';
 
   try {
-    await registerBoard(boardId);
-    setupStatus.textContent = '白板已建立，分享連結給學生即可開始。';
+    await createBoard(boardId, generatedTeacherKey);
+    studentLink.value = boardUrl;
+    teacherKey.value = generatedTeacherKey;
+    openBoard.href = boardUrl;
+    renderQr(qrCode, boardUrl);
+    resultPanel.classList.remove('hidden');
+    copyStatus.textContent = '白板連結已產生。';
+    setupStatus.textContent = '白板已建立。請記下老師六位數密鑰，再分享白板連結給學生。';
   } catch (error) {
     console.error(error);
-    setupStatus.textContent = '白板連結已產生，但尚未能儲存到清單，請稍後重新整理。';
+    setupStatus.textContent = error.message || '白板建立失敗，請確認六位數密鑰後再試。';
   }
 });
 
@@ -78,7 +81,7 @@ function renderBoardList(boards) {
     const title = document.createElement('strong');
     const meta = document.createElement('span');
     title.textContent = board.board_id;
-    meta.textContent = `最後更新：${formatUpdatedAt(board.updated_at)}`;
+    meta.textContent = `建立時間：${formatUpdatedAt(board.created_at)}`;
     details.append(title, meta);
 
     const link = document.createElement('a');
@@ -97,4 +100,9 @@ function formatUpdatedAt(timestamp) {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(timestamp));
+}
+
+function generateTeacherKey() {
+  const random = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000;
+  return String(random).padStart(6, '0');
 }

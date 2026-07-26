@@ -26,6 +26,7 @@
             <h2>建立新的白板</h2>
           </div>
           <p>白板資料會安全地儲存在 Firebase Realtime Database，使用者會以匿名方式連線。</p>
+          <p>系統建立白板時會產生一組老師專用六位數密鑰。持有白板連結與密鑰的裝置，可登入老師控制台；請勿分享給學生。</p>
           <div class="actions">
             <button class="primary-btn" type="submit">產生白板連結</button>
             <a class="ghost-btn as-link" href="./demo.html">直接試玩展示</a>
@@ -66,6 +67,10 @@
             <label>
               <span>學生連結</span>
               <textarea id="student-link" readonly rows="4"></textarea>
+            </label>
+            <label>
+              <span>老師六位數密鑰（請立即記下）</span>
+              <input id="teacher-key" readonly inputmode="numeric" />
             </label>
             <div class="actions">
               <button class="primary-btn" id="copy-link" type="button">複製連結</button>

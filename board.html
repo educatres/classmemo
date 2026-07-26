@@ -21,12 +21,34 @@
         </div>
         <div class="toolbar-actions">
           <button class="ghost-btn" id="refresh-board" type="button">重新同步</button>
-          <button class="ghost-btn danger-btn" id="clear-board" type="button">清除所有</button>
+          <button class="ghost-btn danger-btn hidden" id="clear-board" type="button">清除所有</button>
+          <button class="ghost-btn" id="teacher-login-toggle" type="button">老師登入</button>
           <span id="sync-status" class="sync-pill">尚未同步</span>
           <span id="note-count" class="sync-pill">0 張</span>
           <button class="ghost-btn hide-ui-btn" type="button" data-hide-ui>隱藏介面</button>
         </div>
       </header>
+
+      <section id="teacher-panel" class="teacher-panel hidden" aria-live="polite">
+        <form id="teacher-login-form" class="teacher-login-form">
+          <label>
+            <span>老師六位數登入密鑰</span>
+            <input id="teacher-login-pin" type="password" inputmode="numeric" autocomplete="current-password" pattern="[0-9]{6}" minlength="6" maxlength="6" required />
+          </label>
+          <button class="primary-btn" type="submit">登入老師控制台</button>
+        </form>
+        <div id="teacher-actions" class="teacher-actions hidden">
+          <label class="freeze-control" for="freeze-board">
+            <input id="freeze-board" type="checkbox" />
+            <span>凍結學生編輯</span>
+          </label>
+          <span class="teacher-key-display">老師密鑰：<b id="teacher-key-value">讀取中…</b></span>
+          <span id="teacher-status" class="status-line">老師控制台已登入。</span>
+          <button class="ghost-btn" id="download-board" type="button">下載本白板資料 JSON</button>
+          <button class="ghost-btn danger-btn" id="delete-board" type="button">刪除本白板</button>
+        </div>
+        <p id="teacher-login-status" class="status-line"></p>
+      </section>
 
       <section id="board" class="board" aria-label="便條貼白板">
         <div class="board-spacer" aria-hidden="true"></div>

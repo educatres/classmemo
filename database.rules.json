@@ -4,10 +4,23 @@
     ".write": false,
     "boards": {
       "$boardId": {
-        ".read": "auth != null",
+        ".read": "auth != null && data.child('admins').child(auth.uid).val() === true",
+        ".write": "auth != null && ((!data.exists() && newData.child('admins').child(auth.uid).val() === true) || (data.exists() && data.child('admins').child(auth.uid).val() === true))",
+        "settings": {
+          ".read": "auth != null",
+          ".validate": "newData.hasChildren(['frozen', 'created_at']) && newData.child('frozen').isBoolean() && newData.child('created_at').isNumber()"
+        },
+        "admins": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.val() === true && root.child('teacherKeyClaims').child($boardId).child(auth.uid).val() === root.child('teacherKeys').child($boardId).val()",
+            ".validate": "newData.val() === true"
+          }
+        },
         "notes": {
-          ".write": "auth != null",
+          ".read": "auth != null",
           "$noteId": {
+            ".write": "auth != null && (root.child('boards').child($boardId).child('admins').child(auth.uid).val() === true || (root.child('boards').child($boardId).child('settings').child('created_at').isNumber() && root.child('boards').child($boardId).child('settings').child('frozen').val() !== true))",
             ".validate": "!newData.exists() || (newData.hasChildren(['note_id', 'text', 'x', 'y', 'width', 'height', 'color', 'z_index', 'updated_at']) && newData.child('note_id').val() === $noteId && newData.child('text').isString() && newData.child('text').val().length <= 1000 && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('width').isNumber() && newData.child('height').isNumber() && newData.child('width').val() >= 120 && newData.child('width').val() <= 600 && newData.child('height').val() >= 80 && newData.child('height').val() <= 400 && newData.child('color').isString() && newData.child('z_index').isNumber() && newData.child('updated_at').isNumber())"
           }
         }
@@ -16,8 +29,23 @@
     "boardCatalog": {
       ".read": "auth != null",
       "$boardId": {
-        ".write": "auth != null",
-        ".validate": "newData.hasChildren(['board_id', 'updated_at']) && newData.child('board_id').isString() && newData.child('board_id').val() === $boardId && newData.child('updated_at').isNumber()"
+        ".write": "auth != null && ((!data.exists() && root.child('boards').child($boardId).child('admins').child(auth.uid).val() === true) || (data.exists() && root.child('boards').child($boardId).child('admins').child(auth.uid).val() === true))",
+        ".validate": "!newData.exists() || (newData.hasChildren(['board_id', 'created_at']) && newData.child('board_id').isString() && newData.child('board_id').val() === $boardId && newData.child('created_at').isNumber())"
+      }
+    },
+    "teacherKeys": {
+      "$boardId": {
+        ".read": "auth != null && root.child('boards').child($boardId).child('admins').child(auth.uid).val() === true",
+        ".write": "auth != null && root.child('boards').child($boardId).child('admins').child(auth.uid).val() === true && ((!data.exists() && newData.isString() && newData.val().matches(/^[0-9]{6}$/)) || (data.exists() && !newData.exists()))"
+      }
+    },
+    "teacherKeyClaims": {
+      "$boardId": {
+        ".write": "auth != null && root.child('boards').child($boardId).child('admins').child(auth.uid).val() === true",
+        "$uid": {
+          ".read": "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid && newData.isString() && newData.val().matches(/^[0-9]{6}$/) && newData.val() === root.child('teacherKeys').child($boardId).val()"
+        }
       }
     }
   }
