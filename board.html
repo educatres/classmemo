@@ -23,10 +23,7 @@
           <h1>classMemo 教室便條貼</h1>
         </div>
         <div class="toolbar-actions">
-          <button class="ghost-btn" id="refresh-board" type="button">重新同步</button>
-          <button class="ghost-btn danger-btn hidden" id="clear-board" type="button">清除所有</button>
           <button class="ghost-btn" id="teacher-login-toggle" type="button">老師登入</button>
-          <span id="sync-status" class="sync-pill">尚未同步</span>
           <span id="note-count" class="sync-pill">0 張</span>
           <button class="ghost-btn hide-ui-btn" type="button" data-hide-ui>隱藏介面</button>
         </div>
@@ -35,7 +32,6 @@
       <section id="teacher-panel" class="teacher-panel hidden" aria-live="polite">
         <div class="teacher-panel-heading">
           <p class="eyebrow">Teacher workspace</p>
-          <h2>老師密鑰登入的工作區</h2>
           <p id="board-expiry" class="status-line">正在計算白板有效時間…</p>
         </div>
         <form id="teacher-login-form" class="teacher-login-form">
@@ -58,7 +54,9 @@
           <span id="teacher-status" class="status-line">老師控制台已登入。</span>
           <button class="ghost-btn" id="import-board" type="button">匯入白板 JSON</button>
           <input id="import-board-file" type="file" accept="application/json,.json" hidden />
+          <button class="ghost-btn" id="show-board-qr" type="button">顯示連結 QR Code</button>
           <button class="ghost-btn" id="download-board" type="button">下載本白板資料 JSON</button>
+          <button class="ghost-btn danger-btn" id="clear-board" type="button">清除所有</button>
           <button class="ghost-btn danger-btn" id="delete-board" type="button">刪除本白板</button>
         </div>
         <p id="teacher-login-status" class="status-line"></p>
@@ -72,9 +70,20 @@
         </div>
       </section>
 
+      <span id="sync-status" class="sync-watermark">尚未同步</span>
+
       <button class="floating-add-note" id="add-note" type="button" aria-label="新增便條貼">+</button>
       <button class="show-ui-btn" type="button" data-show-ui>顯示</button>
     </main>
+
+    <section id="board-qr-modal" class="qr-modal hidden" role="dialog" aria-modal="true" aria-labelledby="board-qr-title">
+      <div class="qr-modal-card">
+        <button id="close-board-qr" class="qr-modal-close" type="button" aria-label="關閉 QR Code">×</button>
+        <h2 id="board-qr-title">分享白板連結</h2>
+        <div id="teacher-qr-code" class="qr-code" aria-label="白板 QR Code"></div>
+        <a id="teacher-qr-url" class="qr-url" href="#" target="_blank" rel="noopener"></a>
+      </div>
+    </section>
 
     <template id="note-template">
       <article class="note">
@@ -96,6 +105,7 @@
       </article>
     </template>
 
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script type="module" src="./js/board.js"></script>
   </body>
 </html>

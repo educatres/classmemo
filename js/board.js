@@ -1,4 +1,4 @@
-import { buildConfigFromParams, generateId } from './config.js';
+import { buildBoardUrl, buildConfigFromParams, generateId } from './config.js';
 import {
   BOARD_LIFETIME_MS,
   claimTeacherAccess,
@@ -17,6 +17,7 @@ import {
   subscribeToNotes,
 } from './firebase-store.js';
 import { enableBoardPan } from './board-pan.js';
+import { renderQr } from './qr.js';
 import { enableUiVisibility } from './ui-visibility.js';
 
 const DEFAULT_NOTE = { width: 180, height: 120, color: 'yellow' };
@@ -29,7 +30,6 @@ const board = document.querySelector('#board');
 const emptyState = document.querySelector('#empty-state');
 const noteTemplate = document.querySelector('#note-template');
 const addNoteButton = document.querySelector('#add-note');
-const refreshButton = document.querySelector('#refresh-board');
 const clearBoardButton = document.querySelector('#clear-board');
 const syncStatus = document.querySelector('#sync-status');
 const noteCount = document.querySelector('#note-count');
@@ -48,8 +48,13 @@ const boardExpiry = document.querySelector('#board-expiry');
 const freezeBoard = document.querySelector('#freeze-board');
 const importBoardButton = document.querySelector('#import-board');
 const importBoardFile = document.querySelector('#import-board-file');
+const showBoardQrButton = document.querySelector('#show-board-qr');
 const downloadBoardButton = document.querySelector('#download-board');
 const deleteBoardButton = document.querySelector('#delete-board');
+const boardQrModal = document.querySelector('#board-qr-modal');
+const closeBoardQrButton = document.querySelector('#close-board-qr');
+const teacherQrCode = document.querySelector('#teacher-qr-code');
+const teacherQrUrl = document.querySelector('#teacher-qr-url');
 
 const parsed = buildConfigFromParams();
 const notes = new Map();
@@ -79,7 +84,6 @@ function boot() {
   enableBoardPan(board);
   enableUiVisibility(boardApp);
   addNoteButton.addEventListener('click', createNote);
-  refreshButton.addEventListener('click', () => refreshNotesFromFirebase({ manual: true }));
   clearBoardButton.addEventListener('click', clearBoard);
   teacherLoginToggle.addEventListener('click', () => teacherPanel.classList.toggle('hidden'));
   teacherLoginForm.addEventListener('submit', signInAsTeacher);
@@ -88,8 +92,16 @@ function boot() {
   copyTeacherKeyButton.addEventListener('click', copyTeacherKey);
   importBoardButton.addEventListener('click', () => importBoardFile.click());
   importBoardFile.addEventListener('change', importBoardData);
+  showBoardQrButton.addEventListener('click', openBoardQrModal);
   downloadBoardButton.addEventListener('click', downloadBoardData);
   deleteBoardButton.addEventListener('click', removeBoard);
+  closeBoardQrButton.addEventListener('click', closeBoardQrModal);
+  boardQrModal.addEventListener('click', (event) => {
+    if (event.target === boardQrModal) closeBoardQrModal();
+  });
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeBoardQrModal();
+  });
   syncFromFirebase();
   subscribeToBoardSettings(config.boardId, applyBoardSettings, handleBoardSettingsError);
   periodicSyncTimer = window.setInterval(refreshNotesFromFirebase, SYNC_INTERVAL_MS);
@@ -227,6 +239,23 @@ async function importBoardData() {
   } finally {
     importBoardFile.value = '';
   }
+}
+
+function openBoardQrModal() {
+  if (!isTeacher) return;
+
+  const boardUrl = buildBoardUrl({ board_id: config.boardId });
+  teacherQrUrl.href = boardUrl;
+  teacherQrUrl.textContent = boardUrl;
+  renderQr(teacherQrCode, boardUrl);
+  boardQrModal.classList.remove('hidden');
+  closeBoardQrButton.focus();
+}
+
+function closeBoardQrModal() {
+  if (boardQrModal.classList.contains('hidden')) return;
+  boardQrModal.classList.add('hidden');
+  showBoardQrButton.focus();
 }
 
 async function removeBoard() {

@@ -527,13 +527,8 @@ code {
 }
 
 .teacher-panel-heading .section-heading,
-.teacher-panel-heading .eyebrow,
-.teacher-panel-heading h2 {
+.teacher-panel-heading .eyebrow {
   margin: 0;
-}
-
-.teacher-panel-heading h2 {
-  font-size: 1.25rem;
 }
 
 .teacher-login-form,
@@ -618,6 +613,74 @@ code {
   color: var(--danger);
 }
 
+.sync-watermark {
+  position: fixed;
+  top: max(78px, calc(env(safe-area-inset-top) + 68px));
+  right: max(16px, env(safe-area-inset-right));
+  z-index: 900;
+  max-width: min(46vw, 360px);
+  color: rgba(38, 49, 43, 0.42);
+  font-size: 0.7rem;
+  line-height: 1.4;
+  opacity: 0.5;
+  pointer-events: none;
+  text-align: right;
+}
+
+.sync-watermark.is-error {
+  color: rgba(177, 77, 58, 0.72);
+  opacity: 0.7;
+}
+
+.qr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(25, 34, 29, 0.48);
+}
+
+.qr-modal-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  width: min(380px, 100%);
+  padding: 32px;
+  border-radius: 24px;
+  background: #fffdf7;
+  box-shadow: 0 22px 54px rgba(20, 28, 24, 0.3);
+  text-align: center;
+}
+
+.qr-modal-card h2 {
+  font-size: 1.5rem;
+}
+
+.qr-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(38, 49, 43, 0.08);
+  color: var(--ink);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.qr-url {
+  overflow-wrap: anywhere;
+  color: var(--accent-strong);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
 .floating-add-note {
   position: fixed;
   right: max(18px, env(safe-area-inset-right));
@@ -665,6 +728,10 @@ code {
 }
 
 body.ui-hidden .toolbar {
+  display: none;
+}
+
+body.ui-hidden .sync-watermark {
   display: none;
 }
 
@@ -916,6 +983,15 @@ body.ui-hidden .board {
     min-height: 34px;
     padding: 0 9px;
     font-size: 0.82rem;
+  }
+
+  .sync-watermark {
+    top: max(58px, calc(env(safe-area-inset-top) + 50px));
+    font-size: 0.64rem;
+  }
+
+  .qr-modal-card {
+    padding: 28px 20px 24px;
   }
 
   .floating-add-note {
