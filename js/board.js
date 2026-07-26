@@ -1,11 +1,13 @@
 import { buildConfigFromParams, generateId } from './config.js';
-import { submitEvent } from './google-form.js';
-import { fetchSheetEvents } from './google-sheet.js';
-import { reduceEventsToNotes } from './note-store.js';
+import {
+  clearBoardNotes,
+  deleteNoteFromBoard,
+  saveNote,
+  subscribeToNotes,
+} from './firebase-store.js';
 import { enableBoardPan } from './board-pan.js';
 import { enableUiVisibility } from './ui-visibility.js';
 
-const SYNC_INTERVAL_MS = 5000;
 const DEFAULT_NOTE = { width: 180, height: 120, color: 'yellow' };
 const COLORS = ['yellow', 'pink', 'blue', 'green', 'purple', 'orange'];
 
@@ -23,9 +25,9 @@ const noteCount = document.querySelector('#note-count');
 const parsed = buildConfigFromParams();
 const notes = new Map();
 const editingNotes = new Set();
-const pendingHiddenNotes = new Set();
 let config;
-let syncTimer;
+let unsubscribeFromNotes;
+let subscriptionStarted = false;
 let maxZIndex = 1;
 
 if (!parsed.ok) {
@@ -40,24 +42,37 @@ function boot() {
   enableBoardPan(board);
   enableUiVisibility(boardApp);
   addNoteButton.addEventListener('click', createNote);
-  refreshButton.addEventListener('click', () => syncFromSheet({ manual: true }));
+  refreshButton.addEventListener('click', () => syncFromFirebase({ manual: true }));
   clearBoardButton.addEventListener('click', clearBoard);
-  syncFromSheet();
-  syncTimer = window.setInterval(syncFromSheet, SYNC_INTERVAL_MS);
-  window.addEventListener('beforeunload', () => window.clearInterval(syncTimer));
+  syncFromFirebase();
+  window.addEventListener('beforeunload', () => unsubscribeFromNotes?.());
 }
 
-async function syncFromSheet(options = {}) {
-  setSyncStatus(options.manual ? '重新同步中...' : '同步中...');
+async function syncFromFirebase(options = {}) {
+  if (subscriptionStarted) {
+    setSyncStatus('即時同步已連線。');
+    return;
+  }
+
+  setSyncStatus(options.manual ? '正在連線...' : '正在連線 Firebase...');
+  subscriptionStarted = true;
 
   try {
-    const events = await fetchSheetEvents(config);
-    const remoteNotes = reduceEventsToNotes(events, config.boardId);
-    mergeRemoteNotes(remoteNotes);
-    setSyncStatus(`已同步 ${new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
+    unsubscribeFromNotes = await subscribeToNotes(
+      config.boardId,
+      (remoteNotes) => {
+        mergeRemoteNotes(remoteNotes);
+        setSyncStatus(`即時同步中 · ${new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`);
+      },
+      (error) => {
+        console.error(error);
+        setSyncStatus('無法讀取 Firebase 資料，請稍後再試。', true);
+      },
+    );
   } catch (error) {
     console.error(error);
-    setSyncStatus('無法讀取 Google Sheet，請確認試算表已公開檢視。', true);
+    subscriptionStarted = false;
+    setSyncStatus(error.message || '無法連線 Firebase，請確認網路與匿名登入設定。', true);
   }
 }
 
@@ -65,19 +80,12 @@ function mergeRemoteNotes(remoteNotes) {
   const remoteIds = new Set(remoteNotes.map((note) => note.note_id));
 
   for (const note of remoteNotes) {
-    if (pendingHiddenNotes.has(note.note_id)) continue;
     if (editingNotes.has(note.note_id)) continue;
-    upsertNote(note, { submit: false });
-  }
-
-  for (const noteId of pendingHiddenNotes) {
-    if (!remoteIds.has(noteId)) {
-      pendingHiddenNotes.delete(noteId);
-    }
+    upsertNote(note);
   }
 
   for (const [noteId, note] of notes) {
-    if (!remoteIds.has(noteId) && !note.pending) {
+    if (!remoteIds.has(noteId)) {
       note.element.remove();
       notes.delete(noteId);
     }
@@ -97,22 +105,20 @@ async function createNote() {
     height: DEFAULT_NOTE.height,
     color: DEFAULT_NOTE.color,
     z_index: nextZIndex(),
-    pending: true,
   };
 
-  upsertNote(note, { submit: false });
+  upsertNote(note);
   startEditing(note.note_id);
   await submitNoteEvent(note.note_id, 'create');
 }
 
-function upsertNote(note, options = {}) {
+function upsertNote(note) {
   const existing = notes.get(note.note_id);
   const element = existing?.element || createNoteElement(note.note_id);
   const state = {
     ...existing,
     ...note,
     element,
-    pending: options.submit ? true : note.pending || false,
   };
 
   notes.set(note.note_id, state);
@@ -228,9 +234,6 @@ async function deleteNote(noteId) {
   if (!note) return;
   if (!window.confirm('確定要刪除這張便條貼嗎？')) return;
 
-  note.element.remove();
-  notes.delete(noteId);
-  updateBoardMeta();
   await submitDeletedEvent(note);
 }
 
@@ -241,26 +244,16 @@ async function clearBoard() {
     return;
   }
 
-  if (!window.confirm(`確定要清除目前 ${visibleNotes.length} 張便條貼嗎？資料會保留為隱藏狀態，不會真的刪除。`)) return;
+  if (!window.confirm(`確定要清除目前 ${visibleNotes.length} 張便條貼嗎？這會永久刪除 Firebase 中的資料。`)) return;
 
-  for (const note of visibleNotes) {
-    pendingHiddenNotes.add(note.note_id);
-    note.element.remove();
-    notes.delete(note.note_id);
+  try {
+    setSyncStatus('正在清除 Firebase 資料...');
+    await clearBoardNotes(config.boardId);
+    setSyncStatus('已清除這張白板的所有便條貼。');
+  } catch (error) {
+    console.error(error);
+    setSyncStatus('清除失敗，請稍後再試。', true);
   }
-
-  updateBoardMeta();
-  setSyncStatus('正在送出隱藏狀態...');
-
-  const results = await Promise.allSettled(visibleNotes.map((note) => submitEvent(config, toEvent(note, 'hide'))));
-  const failedCount = results.filter((result) => result.status === 'rejected').length;
-
-  if (failedCount > 0) {
-    setSyncStatus(`已清除畫面，但有 ${failedCount} 張可能未成功送出隱藏狀態。`, true);
-    return;
-  }
-
-  setSyncStatus('已清除畫面，所有便條貼已標記為隱藏。');
 }
 
 function beginDrag(event, noteId) {
@@ -336,45 +329,30 @@ function beginResize(event, noteId) {
   note.element.addEventListener('pointercancel', end);
 }
 
-async function submitNoteEvent(noteId, action) {
+async function submitNoteEvent(noteId) {
   const note = notes.get(noteId);
   if (!note) return;
 
   try {
-    await submitEvent(config, toEvent(note, action));
-    note.pending = false;
-    setSyncStatus('已送出，資料同步可能需要幾秒鐘。');
+    await saveNote(config.boardId, note);
+    setSyncStatus('已儲存並即時同步。');
   } catch (error) {
     console.error(error);
-    note.pending = true;
-    setSyncStatus('已更新本機畫面，但 Google Form 送出可能失敗。', true);
+    setSyncStatus('已更新本機畫面，但 Firebase 儲存失敗。', true);
   }
 }
 
 async function submitDeletedEvent(note) {
   try {
-    await submitEvent(config, toEvent(note, 'delete'));
-    setSyncStatus('已送出刪除事件，資料同步可能需要幾秒鐘。');
+    await deleteNoteFromBoard(config.boardId, note.note_id);
+    note.element.remove();
+    notes.delete(note.note_id);
+    updateBoardMeta();
+    setSyncStatus('已刪除並即時同步。');
   } catch (error) {
     console.error(error);
-    setSyncStatus('本機已刪除，但 Google Form 送出可能失敗。', true);
+    setSyncStatus('本機已刪除，但 Firebase 儲存失敗。', true);
   }
-}
-
-function toEvent(note, action) {
-  return {
-    board_id: config.boardId,
-    note_id: note.note_id,
-    action,
-    text: note.text || '',
-    x: note.x,
-    y: note.y,
-    width: note.width,
-    height: note.height,
-    color: note.color || 'yellow',
-    z_index: note.z_index || 1,
-    timestamp_client: new Date().toISOString(),
-  };
 }
 
 function updateBoardMeta() {

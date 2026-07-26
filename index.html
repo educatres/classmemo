@@ -3,112 +3,53 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ClassBoard 班級共創牆｜老師設定</title>
+    <title>classMemo 教室便條貼｜老師設定</title>
     <link rel="stylesheet" href="./css/styles.css" />
   </head>
   <body class="setup-page">
     <main class="shell">
       <section class="hero">
-        <p class="eyebrow">GitHub Pages + Google Sheet</p>
-        <h1>ClassBoard 班級共創牆</h1>
-        <p class="hero-text">貼上 Google Sheet / Form 設定後，產生學生白板連結與 QR Code。學生匿名新增、拖曳、編輯便條貼，資料會透過 Google Form 寫入 Google Sheet。</p>
-        <img class="hero-image" src="./簡介圖.png" alt="ClassBoard 班級共創牆簡介圖" />
+        <p class="eyebrow">GitHub Pages + Firebase</p>
+        <h1>classMemo 教室便條貼</h1>
+        <p class="hero-text">不需建立 Google Form 或 Google Sheet。建立白板後分享連結與 QR Code，學生可匿名即時新增、編輯、拖曳及調整便條貼。</p>
       </section>
 
       <section class="warning-card">
         <strong>使用提醒</strong>
-        <span>第一版是公開匿名課堂工具，請勿收集姓名、學號、電話、Email 或任何個資。Google Sheet 設為公開檢視後，知道連結的人可能讀取資料。</span>
+        <span>這是匿名課堂工具，請勿收集姓名、學號、電話、Email 或其他個資。取得白板連結的人都可查看及修改該白板。</span>
       </section>
 
       <div class="layout-grid">
         <form id="setup-form" class="panel form-panel">
           <div class="section-heading">
             <p class="eyebrow">Step 1</p>
-            <h2>貼上 Google 設定</h2>
+            <h2>建立新的白板</h2>
           </div>
-
-          <label>
-            <span>Google Sheet ID <b>*</b></span>
-            <input name="sheet_id" required placeholder="例如：1aBcD..." autocomplete="off" />
-          </label>
-
-          <div class="two-col">
-            <label>
-              <span>Sheet 名稱</span>
-              <input name="sheet_name" placeholder="例如：表單回應 1" autocomplete="off" />
-            </label>
-            <label>
-              <span>gid</span>
-              <input name="gid" placeholder="例如：0" autocomplete="off" />
-            </label>
-          </div>
-
-          <label>
-            <span>Google Form submit URL <b>*</b></span>
-            <input name="form_url" required placeholder="https://docs.google.com/forms/d/e/.../formResponse" autocomplete="off" />
-          </label>
-
-          <div class="section-heading compact">
-            <p class="eyebrow">Step 2</p>
-            <h2>自動帶入 entry ID</h2>
-          </div>
-
-          <div class="prefill-helper">
-            <p>最簡單做法：在 Google Form 使用「取得預填連結」，每一題都填入欄位名稱，例如 <code>board_id</code>、<code>note_id</code>、<code>action</code>。把產生的預填連結貼在這裡，系統會自動填好下方 entry ID。</p>
-            <label>
-              <span>Google Form 預填連結</span>
-              <textarea id="prefill-url" rows="4" placeholder="貼上包含 entry.xxxxx=board_id&entry.xxxxx=note_id... 的預填連結"></textarea>
-            </label>
-            <div class="actions inline-actions">
-              <button class="ghost-btn" type="button" id="parse-prefill">從預填連結自動帶入</button>
-              <button class="ghost-btn" type="button" id="fill-sample-markers">顯示要填的欄位名稱</button>
-            </div>
-            <p id="prefill-status" class="status-line"></p>
-          </div>
-
-          <details class="advanced-fields">
-            <summary>進階：手動檢查或修改 entry ID</summary>
-            <div class="entry-grid">
-              <label><span>board_id <b>*</b></span><input name="field_board_id" required placeholder="entry.xxxxx" /></label>
-              <label><span>note_id <b>*</b></span><input name="field_note_id" required placeholder="entry.xxxxx" /></label>
-              <label><span>action <b>*</b></span><input name="field_action" required placeholder="entry.xxxxx" /></label>
-              <label><span>text <b>*</b></span><input name="field_text" required placeholder="entry.xxxxx" /></label>
-              <label><span>x <b>*</b></span><input name="field_x" required placeholder="entry.xxxxx" /></label>
-              <label><span>y <b>*</b></span><input name="field_y" required placeholder="entry.xxxxx" /></label>
-              <label><span>width <b>*</b></span><input name="field_width" required placeholder="entry.xxxxx" /></label>
-              <label><span>height <b>*</b></span><input name="field_height" required placeholder="entry.xxxxx" /></label>
-              <label><span>color <b>*</b></span><input name="field_color" required placeholder="entry.xxxxx" /></label>
-              <label><span>z_index <b>*</b></span><input name="field_z_index" required placeholder="entry.xxxxx" /></label>
-              <label class="wide"><span>timestamp_client <b>*</b></span><input name="field_timestamp_client" required placeholder="entry.xxxxx" /></label>
-            </div>
-          </details>
-
+          <p>白板資料會安全地儲存在 Firebase Realtime Database，使用者會以匿名方式連線。</p>
           <div class="actions">
             <button class="primary-btn" type="submit">產生白板連結</button>
             <a class="ghost-btn as-link" href="./demo.html">直接試玩展示</a>
-            <button class="ghost-btn" type="button" id="reset-board-id">重產 board_id</button>
+            <button class="ghost-btn" type="button" id="reset-board-id">重設白板 ID</button>
           </div>
+          <p id="setup-status" class="status-line"></p>
         </form>
 
         <aside class="panel guide-panel">
           <div class="section-heading">
             <p class="eyebrow">快速教學</p>
-            <h2>老師準備方式</h2>
+            <h2>老師使用方式</h2>
           </div>
           <ol class="guide-list">
-            <li>建立 Google Form，欄位依序為 board_id、note_id、action、text、x、y、width、height、color、z_index、timestamp_client。</li>
-            <li>將表單回應連結到 Google Sheet，並把 Sheet 設為「知道連結的人可以檢視」。</li>
-            <li>在 Google Form 選「取得預填連結」，每題填入對應欄位名，貼回 Step 2 自動帶入。</li>
-            <li>Form URL 使用 <code>/formResponse</code> 結尾的 submit endpoint。</li>
-            <li>產生連結後投影老師白板，學生掃 QR Code 進入同一張白板。</li>
+            <li>按「產生白板連結」。</li>
+            <li>投影白板，或把學生連結和 QR Code 分享給全班。</li>
+            <li>學生開啟連結後即可匿名張貼想法，所有變更會即時同步。</li>
           </ol>
-          <a class="manual-link" href="https://github.com/educatres/classboard/blob/main/%E6%93%8D%E4%BD%9C%E6%89%8B%E5%86%8A.pdf">操作手冊.pdf</a>
         </aside>
       </div>
 
       <section id="result-panel" class="panel result-panel hidden" aria-live="polite">
         <div class="section-heading">
-          <p class="eyebrow">Step 3</p>
+          <p class="eyebrow">Step 2</p>
           <h2>分享白板</h2>
         </div>
         <div class="result-layout">

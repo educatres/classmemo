@@ -1,23 +1,4 @@
-export const FIELD_KEYS = [
-  'board_id',
-  'note_id',
-  'action',
-  'text',
-  'x',
-  'y',
-  'width',
-  'height',
-  'color',
-  'z_index',
-  'timestamp_client',
-];
-
-export const REQUIRED_PARAMS = [
-  'board_id',
-  'sheet_id',
-  'form_url',
-  ...FIELD_KEYS.map((key) => `field_${key}`),
-];
+export const REQUIRED_PARAMS = ['board_id'];
 
 export function generateId(prefix) {
   const random = crypto.getRandomValues(new Uint32Array(2));
@@ -32,20 +13,10 @@ export function buildConfigFromParams(search = window.location.search) {
     return { ok: false, missing };
   }
 
-  const fields = {};
-  for (const key of FIELD_KEYS) {
-    fields[key] = params.get(`field_${key}`);
-  }
-
   return {
     ok: true,
     config: {
       boardId: params.get('board_id'),
-      sheetId: params.get('sheet_id'),
-      sheetName: params.get('sheet_name') || '',
-      gid: params.get('gid') || '',
-      formUrl: params.get('form_url'),
-      fields,
     },
   };
 }

@@ -1,0 +1,17 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "boards": {
+      "$boardId": {
+        ".read": "auth != null",
+        "notes": {
+          ".write": "auth != null",
+          "$noteId": {
+            ".validate": "!newData.exists() || (newData.hasChildren(['note_id', 'text', 'x', 'y', 'width', 'height', 'color', 'z_index', 'updated_at']) && newData.child('note_id').val() === $noteId && newData.child('text').isString() && newData.child('text').val().length <= 1000 && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('width').isNumber() && newData.child('height').isNumber() && newData.child('width').val() >= 120 && newData.child('width').val() <= 600 && newData.child('height').val() >= 80 && newData.child('height').val() <= 400 && newData.child('color').isString() && newData.child('z_index').isNumber() && newData.child('updated_at').isNumber())"
+          }
+        }
+      }
+    }
+  }
+}

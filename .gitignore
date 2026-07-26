@@ -1,2 +1,4 @@
-.DS_Store
-.agents/
+firebase-debug.log
+.firebase/
+node_modules/
+dist/

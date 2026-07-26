@@ -2,7 +2,7 @@ import { generateId } from './config.js';
 import { enableBoardPan } from './board-pan.js';
 import { enableUiVisibility } from './ui-visibility.js';
 
-const STORAGE_KEY = 'classboard.demo.notes.v1';
+const STORAGE_KEY = 'classmemo.demo.notes.v1';
 const COLORS = ['yellow', 'pink', 'blue', 'green', 'purple', 'orange'];
 const STARTER_NOTES = [
   {
@@ -27,7 +27,7 @@ const STARTER_NOTES = [
   },
   {
     note_id: 'demo_note_3',
-    text: '正式使用時，資料會寫入 Google Form，再從 Google Sheet 同步。',
+    text: '正式使用時，資料會儲存在 Firebase，並即時同步給全班。',
     x: 160,
     y: 330,
     width: 300,
