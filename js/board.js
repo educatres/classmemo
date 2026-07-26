@@ -2,6 +2,7 @@ import { buildConfigFromParams, generateId } from './config.js';
 import {
   clearBoardNotes,
   deleteNoteFromBoard,
+  fetchNotes,
   saveNote,
   subscribeToNotes,
 } from './firebase-store.js';
@@ -10,6 +11,7 @@ import { enableUiVisibility } from './ui-visibility.js';
 
 const DEFAULT_NOTE = { width: 180, height: 120, color: 'yellow' };
 const COLORS = ['yellow', 'pink', 'blue', 'green', 'purple', 'orange'];
+const SYNC_INTERVAL_MS = 10000;
 
 const configError = document.querySelector('#config-error');
 const boardApp = document.querySelector('#board-app');
@@ -28,6 +30,8 @@ const editingNotes = new Set();
 let config;
 let unsubscribeFromNotes;
 let subscriptionStarted = false;
+let periodicSyncTimer;
+let isPolling = false;
 let maxZIndex = 1;
 
 if (!parsed.ok) {
@@ -42,10 +46,14 @@ function boot() {
   enableBoardPan(board);
   enableUiVisibility(boardApp);
   addNoteButton.addEventListener('click', createNote);
-  refreshButton.addEventListener('click', () => syncFromFirebase({ manual: true }));
+  refreshButton.addEventListener('click', () => refreshNotesFromFirebase({ manual: true }));
   clearBoardButton.addEventListener('click', clearBoard);
   syncFromFirebase();
-  window.addEventListener('beforeunload', () => unsubscribeFromNotes?.());
+  periodicSyncTimer = window.setInterval(refreshNotesFromFirebase, SYNC_INTERVAL_MS);
+  window.addEventListener('beforeunload', () => {
+    unsubscribeFromNotes?.();
+    window.clearInterval(periodicSyncTimer);
+  });
 }
 
 async function syncFromFirebase(options = {}) {
@@ -73,6 +81,27 @@ async function syncFromFirebase(options = {}) {
     console.error(error);
     subscriptionStarted = false;
     setSyncStatus(error.message || '無法連線 Firebase，請確認網路與匿名登入設定。', true);
+  }
+}
+
+async function refreshNotesFromFirebase(options = {}) {
+  if (isPolling) return;
+  isPolling = true;
+
+  try {
+    const remoteNotes = await fetchNotes(config.boardId);
+    mergeRemoteNotes(remoteNotes);
+    const timestamp = new Date().toLocaleTimeString('zh-TW', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    setSyncStatus(options.manual ? `已手動同步 · ${timestamp}` : `每 10 秒同步 · ${timestamp}`);
+  } catch (error) {
+    console.error(error);
+    setSyncStatus('無法讀取 Firebase 資料，請稍後再試。', true);
+  } finally {
+    isPolling = false;
   }
 }
 

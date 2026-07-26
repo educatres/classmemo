@@ -2,6 +2,7 @@ import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/fireba
 import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import {
   getDatabase,
+  get,
   onValue,
   ref,
   remove,
@@ -46,6 +47,12 @@ export async function subscribeToNotes(boardId, onNotes, onError) {
     },
     onError,
   );
+}
+
+export async function fetchNotes(boardId) {
+  await ensureSignedIn();
+  const snapshot = await get(ref(database, `boards/${boardId}/notes`));
+  return Object.values(snapshot.val() || {});
 }
 
 export async function saveNote(boardId, note) {
